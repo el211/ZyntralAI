@@ -38,6 +38,15 @@ spring:
     port: ${MAIL_PORT:1025}
     username: ${MAIL_USER:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_STARTTLS:true}
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
   messages:
     basename: i18n/messages
