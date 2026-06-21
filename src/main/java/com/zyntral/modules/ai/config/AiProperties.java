@@ -8,7 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AiProperties(
         AiProviderKind defaultProvider,
         Provider anthropic,
-        Provider openai
+        Provider openai,
+        Provider gemini
 ) {
     public record Provider(String apiKey, String model, String baseUrl) {}
 }
