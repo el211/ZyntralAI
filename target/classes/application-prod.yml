@@ -1,0 +1,38 @@
+# Production overrides. Everything sensitive comes from the environment.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# Swagger UI off in production; raw API docs may stay for internal tooling
+springdoc:
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.zyntral: INFO
+  pattern:
+    console: '{"ts":"%d{ISO8601}","level":"%p","trace":"%X{traceId}","logger":"%logger{36}","msg":"%m"}%n'

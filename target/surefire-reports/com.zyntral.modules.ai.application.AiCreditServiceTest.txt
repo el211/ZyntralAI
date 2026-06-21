@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.zyntral.modules.ai.application.AiCreditServiceTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.569 s -- in com.zyntral.modules.ai.application.AiCreditServiceTest
