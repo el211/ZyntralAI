@@ -2,7 +2,6 @@ package com.zyntral.modules.support.application;
 
 import com.zyntral.common.error.ApiException;
 import com.zyntral.modules.support.domain.*;
-import com.zyntral.modules.support.domain.SupportRepositories.*;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
 import com.zyntral.modules.workspace.domain.WorkspaceRole;
 import org.springframework.stereotype.Service;

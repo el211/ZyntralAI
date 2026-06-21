@@ -16,8 +16,10 @@ com\zyntral\modules\billing\domain\InvoiceStatus.class
 com\zyntral\modules\auth\web\dto\AuthDtos$TokenResponse.class
 com\zyntral\modules\admin\web\dto\AdminDtos.class
 com\zyntral\modules\content\application\PostQueuedEvent.class
+com\zyntral\modules\billing\domain\WebhookEventRepository.class
 com\zyntral\modules\content\application\ScheduledPublisher.class
 com\zyntral\modules\auth\domain\RefreshToken.class
+com\zyntral\modules\support\domain\SupportAgentRepository.class
 com\zyntral\modules\workspace\web\dto\WorkspaceDtos$UpdateMemberRoleRequest.class
 com\zyntral\modules\auth\web\dto\AuthDtos.class
 com\zyntral\modules\support\web\dto\SupportDtos$ChatResponse.class
@@ -28,6 +30,7 @@ com\zyntral\modules\content\domain\TargetStatus.class
 com\zyntral\modules\support\application\SupportAgentService.class
 com\zyntral\common\error\ApiException.class
 com\zyntral\modules\ai\config\AiProperties$Provider.class
+com\zyntral\modules\support\domain\SupportMessageRepository.class
 com\zyntral\modules\workspace\domain\WorkspaceRepository.class
 com\zyntral\modules\auth\web\dto\AuthDtos$RefreshRequest.class
 com\zyntral\modules\social\infrastructure\LinkedInPublisher.class
@@ -42,6 +45,7 @@ com\zyntral\modules\social\web\dto\SocialDtos.class
 com\zyntral\modules\social\domain\SocialAccount.class
 com\zyntral\modules\social\infrastructure\TikTokPublisher.class
 com\zyntral\modules\billing\domain\PaymentProviderKind.class
+com\zyntral\modules\billing\domain\SubscriptionRepository.class
 com\zyntral\modules\content\web\dto\ContentDtos$UpdatePostRequest.class
 com\zyntral\modules\ai\application\AiProvider$AiCompletion.class
 com\zyntral\modules\ai\domain\AiCreditLedger$Id.class
@@ -93,7 +97,6 @@ com\zyntral\modules\user\domain\User.class
 com\zyntral\modules\content\domain\PostStatus.class
 com\zyntral\common\config\PropertiesConfig.class
 com\zyntral\common\security\JwtProperties.class
-com\zyntral\modules\billing\domain\BillingRepositories$InvoiceRepository.class
 com\zyntral\modules\billing\domain\BillingInterval.class
 com\zyntral\modules\billing\domain\Plan.class
 com\zyntral\modules\workspace\web\dto\WorkspaceDtos.class
@@ -104,6 +107,7 @@ com\zyntral\modules\social\infrastructure\TwitterPublisher.class
 com\zyntral\modules\billing\application\PaymentProvider$SubscriptionChange.class
 com\zyntral\modules\workspace\web\WorkspaceController.class
 com\zyntral\common\error\ApiError.class
+com\zyntral\modules\support\domain\SupportKnowledgeRepository.class
 com\zyntral\modules\billing\web\dto\BillingDtos$InvoiceResponse.class
 com\zyntral\modules\user\domain\Role.class
 com\zyntral\modules\auth\domain\RefreshTokenRepository.class
@@ -111,7 +115,6 @@ com\zyntral\modules\admin\application\AdminService.class
 com\zyntral\modules\billing\application\PaymentProvider$CheckoutSession.class
 com\zyntral\modules\billing\config\PaymentProperties$PayPal.class
 com\zyntral\modules\support\domain\ConversationRole.class
-com\zyntral\modules\support\domain\SupportRepositories$SupportKnowledgeRepository.class
 com\zyntral\modules\ai\application\AiGenerationService.class
 com\zyntral\common\crypto\StringCryptoConverter.class
 com\zyntral\modules\social\infrastructure\YouTubeOAuthProvider.class
@@ -133,13 +136,10 @@ com\zyntral\modules\support\application\SupportChatService.class
 com\zyntral\modules\workspace\domain\InvitationStatus.class
 com\zyntral\modules\workspace\web\dto\WorkspaceDtos$UpdateWorkspaceRequest.class
 com\zyntral\modules\billing\domain\PaymentTransaction.class
-com\zyntral\modules\billing\domain\BillingRepositories$SubscriptionRepository.class
 com\zyntral\modules\social\web\SocialOAuthController.class
-com\zyntral\modules\support\domain\SupportRepositories$SupportMessageRepository.class
 com\zyntral\modules\auth\web\dto\AuthDtos$ResetPasswordRequest.class
 com\zyntral\modules\billing\domain\Invoice.class
 com\zyntral\modules\content\application\PostService.class
-com\zyntral\modules\support\domain\SupportRepositories.class
 com\zyntral\common\config\WebI18nConfig.class
 com\zyntral\modules\social\config\SocialOAuthProperties$Provider.class
 com\zyntral\modules\billing\domain\SubscriptionStatus.class
@@ -150,7 +150,6 @@ com\zyntral\modules\billing\web\dto\BillingDtos$CreateCheckoutRequest.class
 com\zyntral\modules\workspace\application\WorkspaceAccess.class
 com\zyntral\modules\billing\web\PlanController.class
 com\zyntral\modules\user\domain\RoleRepository.class
-com\zyntral\modules\support\domain\SupportRepositories$SupportConversationRepository.class
 com\zyntral\modules\content\domain\PostTarget.class
 com\zyntral\modules\ai\domain\AiGenerationRepository.class
 com\zyntral\modules\social\application\SocialOAuthProvider.class
@@ -164,9 +163,7 @@ com\zyntral\modules\social\infrastructure\InstagramOAuthProvider.class
 com\zyntral\modules\social\infrastructure\YouTubePublisher.class
 com\zyntral\modules\ai\application\AiGenerationService$GenerateCommand.class
 com\zyntral\modules\billing\application\PaymentProvider$CheckoutCommand.class
-com\zyntral\modules\billing\domain\BillingRepositories$PaymentTransactionRepository.class
 com\zyntral\modules\admin\web\dto\AdminDtos$UserAdminResponse.class
-com\zyntral\modules\billing\domain\BillingRepositories$WebhookEventRepository.class
 com\zyntral\modules\billing\application\PaymentProvider.class
 com\zyntral\common\i18n\MessageService.class
 com\zyntral\modules\ai\domain\AiContentKind.class
@@ -174,7 +171,6 @@ com\zyntral\modules\billing\web\dto\BillingDtos$CheckoutResponse.class
 com\zyntral\modules\social\application\SocialOAuthProvider$OAuthResult.class
 com\zyntral\modules\workspace\web\dto\WorkspaceDtos$CreateWorkspaceRequest.class
 com\zyntral\modules\workspace\domain\WorkspaceInvitation.class
-com\zyntral\modules\billing\domain\BillingRepositories$BillingCustomerRepository.class
 com\zyntral\common\error\ApiError$FieldError.class
 com\zyntral\modules\content\domain\PostRepository.class
 com\zyntral\common\web\TraceIdFilter.class
@@ -194,16 +190,17 @@ com\zyntral\modules\support\web\dto\SupportDtos.class
 com\zyntral\modules\social\domain\SocialPlatform.class
 com\zyntral\modules\workspace\application\WorkspaceService.class
 com\zyntral\common\domain\PlanCode.class
+com\zyntral\modules\billing\domain\BillingCustomerRepository.class
 com\zyntral\modules\workspace\domain\WorkspaceMemberRepository.class
 com\zyntral\modules\auth\domain\AuthToken.class
 com\zyntral\modules\ai\domain\AiProviderKind.class
 com\zyntral\modules\workspace\web\dto\WorkspaceDtos$InviteMemberRequest.class
-com\zyntral\modules\support\domain\SupportRepositories$SupportAgentRepository.class
+com\zyntral\modules\support\domain\SupportConversationRepository.class
 com\zyntral\common\security\SecurityConfig.class
 com\zyntral\modules\admin\web\dto\AdminDtos$OverviewResponse.class
 com\zyntral\modules\support\domain\SupportAgent.class
 com\zyntral\modules\auth\web\dto\AuthDtos$RegisterRequest.class
-com\zyntral\modules\billing\domain\BillingRepositories.class
+com\zyntral\modules\billing\domain\InvoiceRepository.class
 com\zyntral\modules\billing\application\PaymentProvider$WebhookOutcome.class
 com\zyntral\modules\ai\application\AiGenerationService$GenerationResult.class
 com\zyntral\modules\support\web\dto\SupportDtos$AddKnowledgeRequest.class
@@ -215,6 +212,7 @@ com\zyntral\modules\ai\web\dto\AiDtos.class
 com\zyntral\modules\ai\web\dto\AiDtos$GenerateRequest.class
 com\zyntral\modules\billing\infrastructure\StripePaymentProvider.class
 com\zyntral\common\event\UserEmailVerifiedEvent.class
+com\zyntral\modules\billing\domain\PaymentTransactionRepository.class
 com\zyntral\modules\auth\domain\AuthToken$Purpose.class
 com\zyntral\modules\content\web\dto\ContentDtos$MediaResponse.class
 com\zyntral\modules\social\infrastructure\LinkedInOAuthProvider.class

@@ -5,7 +5,6 @@ import com.zyntral.common.error.ErrorCode;
 import com.zyntral.modules.ai.application.AiProvider;
 import com.zyntral.modules.ai.application.AiProviderRegistry;
 import com.zyntral.modules.support.domain.*;
-import com.zyntral.modules.support.domain.SupportRepositories.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
