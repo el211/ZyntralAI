@@ -14,7 +14,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     Page<Invoice> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId, Pageable pageable);
 
-    @Query("SELECT coalesce(sum(i.amountCents), 0) FROM Invoice i "
-            + "WHERE i.status = com.zyntral.modules.billing.domain.InvoiceStatus.PAID")
-    long sumPaidAmountCents();
+    // Status bound as a parameter (not an inline enum literal) so Hibernate casts to the
+    // real Postgres type (invoice_status) instead of the Java class name.
+    @Query("SELECT coalesce(sum(i.amountCents), 0) FROM Invoice i WHERE i.status = :status")
+    long sumAmountCentsByStatus(InvoiceStatus status);
+
+    default long sumPaidAmountCents() {
+        return sumAmountCentsByStatus(InvoiceStatus.PAID);
+    }
 }
