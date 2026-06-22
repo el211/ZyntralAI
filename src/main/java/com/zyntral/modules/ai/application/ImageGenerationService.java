@@ -113,6 +113,40 @@ public class ImageGenerationService {
         return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
     }
 
+    /** Remove the background of an uploaded image, returning a transparent PNG. Needs gpt-image-1. */
+    @Transactional
+    public AiImage removeBackground(UUID workspaceId, UUID userId, byte[] imageBytes, String filename) {
+        access.requireCanEdit(workspaceId, userId);
+        String safeName = (filename == null || filename.isBlank()) ? "image.png" : filename;
+
+        MultipartBodyBuilder mb = new MultipartBodyBuilder();
+        mb.part("model", model);
+        mb.part("prompt", "Remove the background completely and keep only the main subject, cleanly "
+                + "isolated on a fully transparent background. Do not add or change anything else.");
+        mb.part("background", "transparent");
+        mb.part("output_format", "png");
+        mb.part("size", "auto");
+        mb.part("image", new ByteArrayResource(imageBytes) {
+            @Override public String getFilename() { return safeName; }
+        });
+
+        byte[] data;
+        try {
+            JsonNode res = client.post().uri("/images/edits")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(mb.build())
+                    .retrieve().body(JsonNode.class);
+            String b64 = res.path("data").path(0).path("b64_json").asText(null);
+            if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
+            data = Base64.getDecoder().decode(b64);
+        } catch (Exception e) {
+            log.error("Background removal failed (model={})", model, e);
+            throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Background removal failed"});
+        }
+        return images.save(AiImage.create(workspaceId, userId, "CUTOUT", "background removed",
+                "image/png", data));
+    }
+
     @Transactional(readOnly = true)
     public List<AiImage> list(UUID workspaceId, UUID userId) {
         access.requireMember(workspaceId, userId);

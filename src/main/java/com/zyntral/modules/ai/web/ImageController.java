@@ -58,6 +58,15 @@ public class ImageController {
         return ApiResponse.ok(ImageResponse.of(img));
     }
 
+    @Operation(summary = "Remove the background of an uploaded image")
+    @PostMapping(value = "/remove-background", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ImageResponse> removeBackground(@PathVariable UUID workspaceId,
+                                                       @RequestParam("image") MultipartFile image) throws IOException {
+        AiImage img = service.removeBackground(workspaceId, SecurityUtils.currentUserId(),
+                image.getBytes(), image.getOriginalFilename());
+        return ApiResponse.ok(ImageResponse.of(img));
+    }
+
     @Operation(summary = "List generated images for the workspace")
     @GetMapping
     public ApiResponse<List<ImageResponse>> list(@PathVariable UUID workspaceId) {
