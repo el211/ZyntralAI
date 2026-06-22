@@ -37,6 +37,16 @@ public class AiVideo {
     @Column(name = "content_type")
     private String contentType;
 
+    // The Veo-hosted source URI of the produced clip (valid ~2 days), needed to extend it later.
+    @Column(name = "veo_video_uri", length = 2048)
+    private String veoVideoUri;
+
+    @Column(name = "resolution")
+    private String resolution;
+
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds;
+
     @Column
     private String error;
 
@@ -63,11 +73,15 @@ public class AiVideo {
         return v;
     }
 
+    public void setResolution(String resolution) { this.resolution = resolution; }
+    public void setDurationSeconds(Integer durationSeconds) { this.durationSeconds = durationSeconds; }
+
     public void markProcessing() { this.status = Status.PROCESSING.name(); touch(); }
-    public void markCompleted(String key, String contentType) {
+    public void markCompleted(String key, String contentType, String veoVideoUri) {
         this.status = Status.COMPLETED.name();
         this.storageKey = key;
         this.contentType = contentType;
+        this.veoVideoUri = veoVideoUri;
         touch();
     }
     public void markFailed(String error) { this.status = Status.FAILED.name(); this.error = error; touch(); }
@@ -80,6 +94,7 @@ public class AiVideo {
     public String getOperationName() { return operationName; }
     public String getStorageKey() { return storageKey; }
     public String getContentType() { return contentType; }
+    public String getVeoVideoUri() { return veoVideoUri; }
     public String getError() { return error; }
     public int getCreditsCost() { return creditsCost; }
     public Instant getCreatedAt() { return createdAt; }
