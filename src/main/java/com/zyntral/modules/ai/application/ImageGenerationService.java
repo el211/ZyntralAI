@@ -125,6 +125,15 @@ public class ImageGenerationService {
         }
     }
 
+    /** Store a user-uploaded image in the library (no AI call, no credit charge). */
+    @Transactional
+    public AiImage store(UUID workspaceId, UUID userId, byte[] bytes, String filename, String contentType) {
+        access.requireCanEdit(workspaceId, userId);
+        String ct = (contentType == null || contentType.isBlank()) ? "image/png" : contentType;
+        String name = (filename == null || filename.isBlank()) ? "uploaded image" : filename;
+        return images.save(AiImage.create(workspaceId, userId, "UPLOAD", name, ct, bytes));
+    }
+
     @Transactional(readOnly = true)
     public List<AiImage> list(UUID workspaceId, UUID userId) {
         access.requireMember(workspaceId, userId);

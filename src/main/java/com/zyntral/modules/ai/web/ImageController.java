@@ -58,6 +58,15 @@ public class ImageController {
         return ApiResponse.ok(ImageResponse.of(img));
     }
 
+    @Operation(summary = "Upload an image to the library (for attaching to posts)")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ImageResponse> upload(@PathVariable UUID workspaceId,
+                                             @RequestParam("image") MultipartFile image) throws IOException {
+        AiImage img = service.store(workspaceId, SecurityUtils.currentUserId(),
+                image.getBytes(), image.getOriginalFilename(), image.getContentType());
+        return ApiResponse.ok(ImageResponse.of(img));
+    }
+
     @Operation(summary = "Remove the background of an uploaded image")
     @PostMapping(value = "/remove-background", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<ImageResponse> removeBackground(@PathVariable UUID workspaceId,
