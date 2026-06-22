@@ -66,6 +66,11 @@ public class StorageService {
                 RequestBody.fromBytes(bytes));
     }
 
+    public byte[] getBytes(String key) {
+        requireEnabled();
+        return s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+    }
+
     public String presignedGetUrl(String key, Duration ttl) {
         requireEnabled();
         GetObjectPresignRequest req = GetObjectPresignRequest.builder()
