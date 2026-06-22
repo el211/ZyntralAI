@@ -10,6 +10,9 @@ import com.zyntral.modules.workspace.application.WorkspaceAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -76,6 +79,40 @@ public class ImageGenerationService {
         return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
     }
 
+    /** Improve/restyle an uploaded image (logo, etc.) via the image-edit API. Needs gpt-image-1. */
+    @Transactional
+    public AiImage edit(UUID workspaceId, UUID userId, String kindRaw, String prompt,
+                        byte[] imageBytes, String filename) {
+        access.requireCanEdit(workspaceId, userId);
+        ImageKind kind = parseKind(kindRaw);
+        String size = kind == ImageKind.BANNER ? "1536x1024" : "1024x1024";
+        String safeName = (filename == null || filename.isBlank()) ? "image.png" : filename;
+
+        MultipartBodyBuilder mb = new MultipartBodyBuilder();
+        mb.part("model", model);
+        mb.part("prompt", improve(kind, prompt));
+        mb.part("size", size);
+        mb.part("image", new ByteArrayResource(imageBytes) {
+            @Override public String getFilename() { return safeName; }
+        });
+        if (model.startsWith("dall-e")) mb.part("response_format", "b64_json");
+
+        byte[] data;
+        try {
+            JsonNode res = client.post().uri("/images/edits")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(mb.build())
+                    .retrieve().body(JsonNode.class);
+            String b64 = res.path("data").path(0).path("b64_json").asText(null);
+            if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
+            data = Base64.getDecoder().decode(b64);
+        } catch (Exception e) {
+            log.error("Image edit failed (kind={}, model={})", kind, model, e);
+            throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Image improvement failed"});
+        }
+        return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
+    }
+
     @Transactional(readOnly = true)
     public List<AiImage> list(UUID workspaceId, UUID userId) {
         access.requireMember(workspaceId, userId);
@@ -88,6 +125,13 @@ public class ImageGenerationService {
         } catch (IllegalArgumentException e) {
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"kind must be LOGO or BANNER"});
         }
+    }
+
+    private String improve(ImageKind kind, String prompt) {
+        String base = "Improve and modernize this uploaded " + (kind == ImageKind.BANNER ? "banner" : "logo")
+                + ", keeping its core identity. ";
+        return (prompt == null || prompt.isBlank()) ? base + "Make it cleaner and more professional."
+                : base + prompt;
     }
 
     private String frame(ImageKind kind, String prompt) {

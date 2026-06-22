@@ -10,8 +10,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +44,17 @@ public class ImageController {
     public ApiResponse<ImageResponse> generate(@PathVariable UUID workspaceId,
                                                @Valid @RequestBody GenerateImageRequest req) {
         AiImage img = service.generate(workspaceId, SecurityUtils.currentUserId(), req.kind(), req.prompt());
+        return ApiResponse.ok(ImageResponse.of(img));
+    }
+
+    @Operation(summary = "Improve an uploaded image (logo/banner)")
+    @PostMapping(value = "/edit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ImageResponse> edit(@PathVariable UUID workspaceId,
+                                           @RequestParam String kind,
+                                           @RequestParam(required = false) String prompt,
+                                           @RequestParam("image") MultipartFile image) throws IOException {
+        AiImage img = service.edit(workspaceId, SecurityUtils.currentUserId(),
+                kind, prompt, image.getBytes(), image.getOriginalFilename());
         return ApiResponse.ok(ImageResponse.of(img));
     }
 
