@@ -27,7 +27,7 @@ public class VideoController {
         this.service = service;
     }
 
-    public record GenerateVideoRequest(@NotBlank @Size(max = 2000) String prompt) {}
+    public record GenerateVideoRequest(@NotBlank @Size(max = 2000) String prompt, String aspectRatio) {}
 
     public record VideoResponse(UUID id, String status, String prompt, String error, Instant createdAt) {
         static VideoResponse of(AiVideo v) {
@@ -40,7 +40,7 @@ public class VideoController {
     public ApiResponse<VideoResponse> generate(@PathVariable UUID workspaceId,
                                                @Valid @RequestBody GenerateVideoRequest req) {
         return ApiResponse.ok(VideoResponse.of(
-                service.submit(workspaceId, SecurityUtils.currentUserId(), req.prompt())));
+                service.submit(workspaceId, SecurityUtils.currentUserId(), req.prompt(), req.aspectRatio())));
     }
 
     @Operation(summary = "List videos for the workspace")

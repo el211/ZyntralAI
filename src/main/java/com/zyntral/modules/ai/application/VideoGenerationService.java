@@ -51,16 +51,19 @@ public class VideoGenerationService {
         this.http = RestClient.builder().defaultHeader("x-goog-api-key", key).build();
     }
 
-    public AiVideo submit(UUID workspaceId, UUID userId, String prompt) {
+    public AiVideo submit(UUID workspaceId, UUID userId, String prompt, String aspectRatio) {
         access.requireCanEdit(workspaceId, userId);
         if (!storage.isEnabled()) {
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Video storage (S3) is not configured"});
         }
+        String ratio = "9:16".equals(aspectRatio) ? "9:16" : "16:9";
         credits.charge(workspaceId, VIDEO_COST);
         try {
             JsonNode res = veo.post()
                     .uri("/models/" + model + ":predictLongRunning")
-                    .body(Map.of("instances", List.of(Map.of("prompt", prompt))))
+                    .body(Map.of(
+                            "instances", List.of(Map.of("prompt", prompt)),
+                            "parameters", Map.of("aspectRatio", ratio)))
                     .retrieve().body(JsonNode.class);
             String op = res.path("name").asText(null);
             if (op == null || op.isBlank()) throw new IllegalStateException("no operation name returned");
