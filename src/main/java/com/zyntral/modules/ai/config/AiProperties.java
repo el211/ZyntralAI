@@ -9,7 +9,8 @@ public record AiProperties(
         AiProviderKind defaultProvider,
         Provider anthropic,
         Provider openai,
-        Provider gemini
+        Provider gemini,
+        Provider veo
 ) {
     public record Provider(String apiKey, String model, String baseUrl) {}
 }

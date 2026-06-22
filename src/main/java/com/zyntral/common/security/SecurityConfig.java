@@ -34,7 +34,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_GET = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
             "/actuator/health", "/actuator/health/**", "/actuator/prometheus",
-            ApiConstants.API_V1 + "/ai-images/**"   // generated images served by unguessable id
+            ApiConstants.API_V1 + "/ai-images/**",  // generated images served by unguessable id
+            ApiConstants.API_V1 + "/videos/**"      // generated videos (presigned S3 redirect)
     };
     private static final String[] PUBLIC_ANY = {
             ApiConstants.API_V1 + "/auth/**",
