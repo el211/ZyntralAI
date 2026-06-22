@@ -24,26 +24,31 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Generates logos and banners via OpenAI's image API and stores the bytes in-DB. Reuses the
- * configured OpenAI key/base-url; the model is {@code zyntral.ai.openai.image-model}
- * (default gpt-image-1).
+ * Generates / edits images (logos, banners, background removal) via OpenAI's image API and stores
+ * the bytes in-DB. Each operation charges {@link #IMAGE_COST} AI credits up front (refunded if the
+ * provider call fails), exactly like text generation, so plan limits apply.
  */
 @Service
 public class ImageGenerationService {
 
     public enum ImageKind { LOGO, BANNER }
 
+    private static final int IMAGE_COST = 5;   // credits per image operation
+
     private static final Logger log = LoggerFactory.getLogger(ImageGenerationService.class);
 
     private final AiImageRepository images;
     private final WorkspaceAccess access;
+    private final AiCreditService credits;
     private final RestClient client;
     private final String model;
 
-    public ImageGenerationService(AiImageRepository images, WorkspaceAccess access, AiProperties props,
+    public ImageGenerationService(AiImageRepository images, WorkspaceAccess access,
+                                  AiCreditService credits, AiProperties props,
                                   @Value("${zyntral.ai.openai.image-model:gpt-image-1}") String model) {
         this.images = images;
         this.access = access;
+        this.credits = credits;
         this.model = model;
         this.client = RestClient.builder()
                 .baseUrl(props.openai().baseUrl())
@@ -52,7 +57,7 @@ public class ImageGenerationService {
                 .build();
     }
 
-    @Transactional
+    /** Create a logo or banner from a text prompt. */
     public AiImage generate(UUID workspaceId, UUID userId, String kindRaw, String prompt) {
         access.requireCanEdit(workspaceId, userId);
         ImageKind kind = parseKind(kindRaw);
@@ -65,92 +70,92 @@ public class ImageGenerationService {
         body.put("n", 1);
         if (model.startsWith("dall-e")) body.put("response_format", "b64_json");
 
-        byte[] data;
+        credits.charge(workspaceId, IMAGE_COST);
         try {
-            JsonNode res = client.post().uri("/images/generations").body(body)
-                    .retrieve().body(JsonNode.class);
-            String b64 = res.path("data").path(0).path("b64_json").asText(null);
-            if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
-            data = Base64.getDecoder().decode(b64);
-        } catch (Exception e) {
-            log.error("Image generation failed (kind={}, model={})", kind, model, e);
+            byte[] data = decode(client.post().uri("/images/generations").body(body)
+                    .retrieve().body(JsonNode.class));
+            return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, IMAGE_COST);
+            log.error("Image generation failed (kind={}, model={})", kind, model, ex);
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Image generation failed"});
         }
-        return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
     }
 
     /** Improve/restyle an uploaded image (logo, etc.) via the image-edit API. Needs gpt-image-1. */
-    @Transactional
     public AiImage edit(UUID workspaceId, UUID userId, String kindRaw, String prompt,
                         byte[] imageBytes, String filename) {
         access.requireCanEdit(workspaceId, userId);
         ImageKind kind = parseKind(kindRaw);
         String size = kind == ImageKind.BANNER ? "1536x1024" : "1024x1024";
-        String safeName = (filename == null || filename.isBlank()) ? "image.png" : filename;
+        MultipartBodyBuilder mb = multipart(improve(kind, prompt), size, imageBytes, filename, false);
 
-        MultipartBodyBuilder mb = new MultipartBodyBuilder();
-        mb.part("model", model);
-        mb.part("prompt", improve(kind, prompt));
-        mb.part("size", size);
-        mb.part("image", new ByteArrayResource(imageBytes) {
-            @Override public String getFilename() { return safeName; }
-        });
-        if (model.startsWith("dall-e")) mb.part("response_format", "b64_json");
-
-        byte[] data;
+        credits.charge(workspaceId, IMAGE_COST);
         try {
-            JsonNode res = client.post().uri("/images/edits")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(mb.build())
-                    .retrieve().body(JsonNode.class);
-            String b64 = res.path("data").path(0).path("b64_json").asText(null);
-            if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
-            data = Base64.getDecoder().decode(b64);
-        } catch (Exception e) {
-            log.error("Image edit failed (kind={}, model={})", kind, model, e);
+            byte[] data = decode(client.post().uri("/images/edits")
+                    .contentType(MediaType.MULTIPART_FORM_DATA).body(mb.build())
+                    .retrieve().body(JsonNode.class));
+            return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, IMAGE_COST);
+            log.error("Image edit failed (kind={}, model={})", kind, model, ex);
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Image improvement failed"});
         }
-        return images.save(AiImage.create(workspaceId, userId, kind.name(), prompt, "image/png", data));
     }
 
     /** Remove the background of an uploaded image, returning a transparent PNG. Needs gpt-image-1. */
-    @Transactional
     public AiImage removeBackground(UUID workspaceId, UUID userId, byte[] imageBytes, String filename) {
         access.requireCanEdit(workspaceId, userId);
-        String safeName = (filename == null || filename.isBlank()) ? "image.png" : filename;
+        MultipartBodyBuilder mb = multipart(
+                "Remove the background completely and keep only the main subject, cleanly isolated on a "
+                        + "fully transparent background. Do not add or change anything else.",
+                "auto", imageBytes, filename, true);
 
-        MultipartBodyBuilder mb = new MultipartBodyBuilder();
-        mb.part("model", model);
-        mb.part("prompt", "Remove the background completely and keep only the main subject, cleanly "
-                + "isolated on a fully transparent background. Do not add or change anything else.");
-        mb.part("background", "transparent");
-        mb.part("output_format", "png");
-        mb.part("size", "auto");
-        mb.part("image", new ByteArrayResource(imageBytes) {
-            @Override public String getFilename() { return safeName; }
-        });
-
-        byte[] data;
+        credits.charge(workspaceId, IMAGE_COST);
         try {
-            JsonNode res = client.post().uri("/images/edits")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(mb.build())
-                    .retrieve().body(JsonNode.class);
-            String b64 = res.path("data").path(0).path("b64_json").asText(null);
-            if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
-            data = Base64.getDecoder().decode(b64);
-        } catch (Exception e) {
-            log.error("Background removal failed (model={})", model, e);
+            byte[] data = decode(client.post().uri("/images/edits")
+                    .contentType(MediaType.MULTIPART_FORM_DATA).body(mb.build())
+                    .retrieve().body(JsonNode.class));
+            return images.save(AiImage.create(workspaceId, userId, "CUTOUT", "background removed",
+                    "image/png", data));
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, IMAGE_COST);
+            log.error("Background removal failed (model={})", model, ex);
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Background removal failed"});
         }
-        return images.save(AiImage.create(workspaceId, userId, "CUTOUT", "background removed",
-                "image/png", data));
     }
 
     @Transactional(readOnly = true)
     public List<AiImage> list(UUID workspaceId, UUID userId) {
         access.requireMember(workspaceId, userId);
         return images.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+    }
+
+    // ---- helpers ----
+
+    private MultipartBodyBuilder multipart(String prompt, String size, byte[] imageBytes,
+                                           String filename, boolean transparent) {
+        String safeName = (filename == null || filename.isBlank()) ? "image.png" : filename;
+        MultipartBodyBuilder mb = new MultipartBodyBuilder();
+        mb.part("model", model);
+        mb.part("prompt", prompt);
+        mb.part("size", size);
+        if (transparent) {
+            mb.part("background", "transparent");
+            mb.part("output_format", "png");
+        } else if (model.startsWith("dall-e")) {
+            mb.part("response_format", "b64_json");
+        }
+        mb.part("image", new ByteArrayResource(imageBytes) {
+            @Override public String getFilename() { return safeName; }
+        });
+        return mb;
+    }
+
+    private byte[] decode(JsonNode res) {
+        String b64 = res.path("data").path(0).path("b64_json").asText(null);
+        if (b64 == null || b64.isBlank()) throw new IllegalStateException("no image data returned");
+        return Base64.getDecoder().decode(b64);
     }
 
     private ImageKind parseKind(String raw) {
