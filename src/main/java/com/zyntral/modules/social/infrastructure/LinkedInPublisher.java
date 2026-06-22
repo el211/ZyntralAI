@@ -1,6 +1,7 @@
 package com.zyntral.modules.social.infrastructure;
 
 import com.zyntral.modules.social.domain.SocialPlatform;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,10 @@ import java.util.Map;
 public class LinkedInPublisher extends AbstractSocialPublisher {
 
     private static final String POSTS_URL = "https://api.linkedin.com/rest/posts";
-    private static final String LINKEDIN_VERSION = "202405";
+
+    // LinkedIn retires API versions after ~12 months; keep this current via config.
+    @Value("${zyntral.social.linkedin.api-version:202605}")
+    private String linkedInVersion;
 
     private final RestClient http = RestClient.create();
 
@@ -48,7 +52,7 @@ public class LinkedInPublisher extends AbstractSocialPublisher {
         ResponseEntity<Void> response = http.post()
                 .uri(POSTS_URL)
                 .header("Authorization", "Bearer " + token)
-                .header("LinkedIn-Version", LINKEDIN_VERSION)
+                .header("LinkedIn-Version", linkedInVersion)
                 .header("X-Restli-Protocol-Version", "2.0.0")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
