@@ -7,6 +7,7 @@ import com.zyntral.modules.admin.application.AdminService;
 import com.zyntral.modules.admin.web.dto.AdminDtos.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -52,6 +53,33 @@ public class AdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void activate(@PathVariable UUID userId) {
         admin.setUserSuspended(userId, false);
+    }
+
+    @Operation(summary = "Delete (deactivate) a user")
+    @DeleteMapping("/users/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID userId) {
+        admin.deleteUser(userId);
+    }
+
+    @Operation(summary = "Grant AI credits to a user's workspaces")
+    @PostMapping("/users/{userId}/credits")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void grantCredits(@PathVariable UUID userId, @Valid @RequestBody GrantCreditsRequest req) {
+        admin.grantCredits(userId, req.amount());
+    }
+
+    @Operation(summary = "Set a user's plan (free upgrade/downgrade)")
+    @PostMapping("/users/{userId}/plan")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setPlan(@PathVariable UUID userId, @Valid @RequestBody SetPlanRequest req) {
+        admin.setPlan(userId, req.plan());
+    }
+
+    @Operation(summary = "Impersonate a user (force-login)")
+    @PostMapping("/users/{userId}/impersonate")
+    public ApiResponse<ImpersonateResponse> impersonate(@PathVariable UUID userId) {
+        return ApiResponse.ok(admin.impersonate(userId));
     }
 
     @Operation(summary = "List all subscriptions")

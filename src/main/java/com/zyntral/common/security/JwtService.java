@@ -32,6 +32,11 @@ public class JwtService {
     }
 
     public String issueAccessToken(UUID userId, String email, List<String> roles) {
+        return issueToken(userId, email, roles, props.accessTokenTtl());
+    }
+
+    /** Issues a signed token with an explicit TTL (e.g. the longer-lived admin-panel token). */
+    public String issueToken(UUID userId, String email, List<String> roles, java.time.Duration ttl) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .issuer(props.issuer())
@@ -39,7 +44,7 @@ public class JwtService {
                 .claim(CLAIM_EMAIL, email)
                 .claim(CLAIM_ROLES, roles)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(props.accessTokenTtl())))
+                .expiration(Date.from(now.plus(ttl)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }

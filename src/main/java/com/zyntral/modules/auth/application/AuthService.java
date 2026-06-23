@@ -88,6 +88,10 @@ public class AuthService {
         if (!user.isEmailVerified()) {
             throw new ApiException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
+        if (user.getStatus() == com.zyntral.modules.user.domain.UserStatus.SUSPENDED
+                || user.getStatus() == com.zyntral.modules.user.domain.UserStatus.DELETED) {
+            throw new ApiException(ErrorCode.FORBIDDEN);   // banned / suspended / deleted
+        }
         user.recordLogin();
         return issueTokens(user, userAgent, ip);
     }

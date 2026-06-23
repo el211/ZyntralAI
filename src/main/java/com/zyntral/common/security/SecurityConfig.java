@@ -39,6 +39,7 @@ public class SecurityConfig {
     };
     private static final String[] PUBLIC_ANY = {
             ApiConstants.API_V1 + "/auth/**",
+            ApiConstants.API_V1 + "/admin/login",              // admin-panel login (env creds)
             ApiConstants.API_V1 + "/billing/webhooks/**",
             ApiConstants.API_V1 + "/support/public/**",        // embeddable widget
             ApiConstants.API_V1 + "/social/oauth/callback/**"  // OAuth provider redirect (state-secured)

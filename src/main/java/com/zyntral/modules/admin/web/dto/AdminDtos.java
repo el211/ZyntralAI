@@ -9,6 +9,10 @@ import com.zyntral.modules.user.domain.Role;
 import com.zyntral.modules.user.domain.User;
 import com.zyntral.modules.user.domain.UserStatus;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +20,19 @@ import java.util.UUID;
 public final class AdminDtos {
 
     private AdminDtos() {}
+
+    public record AdminLoginRequest(@NotBlank String username, @NotBlank String password) {}
+
+    public record AdminTokenResponse(String accessToken) {}
+
+    public record GrantCreditsRequest(@Positive int amount) {}
+
+    public record SetPlanRequest(@NotNull PlanCode plan) {}
+
+    public record ImpersonatedUser(UUID id, String email, String fullName,
+                                   boolean emailVerified, List<String> roles) {}
+
+    public record ImpersonateResponse(String accessToken, ImpersonatedUser user) {}
 
     public record OverviewResponse(
             long totalUsers, long totalWorkspaces, long liveSubscriptions,

@@ -51,4 +51,15 @@ public interface AiCreditLedgerRepository
     int refund(@Param("workspaceId") UUID workspaceId,
                @Param("month") LocalDate month,
                @Param("cost") int cost);
+
+    /** Admin grant: raises this period's credit limit so the workspace gets extra credits. */
+    @Modifying
+    @Query(value = """
+            UPDATE ai_credit_ledger
+               SET credits_limit = credits_limit + :amount, updated_at = now()
+             WHERE workspace_id = :workspaceId AND period_month = :month
+            """, nativeQuery = true)
+    int grant(@Param("workspaceId") UUID workspaceId,
+              @Param("month") LocalDate month,
+              @Param("amount") int amount);
 }

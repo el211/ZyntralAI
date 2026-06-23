@@ -51,6 +51,14 @@ public class AiCreditService {
         ledger.refund(workspaceId, currentMonth(), cost);
     }
 
+    /** Admin grant: add extra credits to a workspace for the current month. */
+    @Transactional
+    public void grant(UUID workspaceId, int amount) {
+        LocalDate month = currentMonth();
+        ledger.ensureLedger(workspaceId, month, monthlyLimit(workspaceId));
+        ledger.grant(workspaceId, month, amount);
+    }
+
     @Transactional
     public Usage usage(UUID workspaceId) {
         LocalDate month = currentMonth();

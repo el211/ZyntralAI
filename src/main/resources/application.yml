@@ -66,6 +66,9 @@ server:
 
 # ---- application-specific config ----
 zyntral:
+  admin:
+    username: ${ADMIN_PANEL_USERNAME:admin}
+    password: ${ADMIN_PANEL_PASSWORD:}      # blank disables admin-panel login
   crypto:
     secret: ${CRYPTO_SECRET:dev-only-crypto-secret-change-me-in-production}
   web-url: ${WEB_URL:http://localhost:3000}

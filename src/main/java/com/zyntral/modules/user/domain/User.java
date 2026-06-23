@@ -91,6 +91,8 @@ public class User {
 
     public void reactivate() { this.status = UserStatus.ACTIVE; }
 
+    public void markDeleted() { this.status = UserStatus.DELETED; }
+
     public void changePassword(String newHash) { this.passwordHash = newHash; }
 
     public void addRole(Role role) { this.roles.add(role); }
