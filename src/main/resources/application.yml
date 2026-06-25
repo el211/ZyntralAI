@@ -99,6 +99,11 @@ zyntral:
       api-key: ${VEO_API_KEY:${GEMINI_API_KEY:}}
       model: ${VEO_MODEL:veo-3.1-generate-preview}
       base-url: https://generativelanguage.googleapis.com/v1beta
+    elevenlabs:
+      api-key: ${ELEVENLABS_API_KEY:}
+      model: ${ELEVENLABS_MODEL:eleven_multilingual_v2}
+      voice-id: ${ELEVENLABS_VOICE_ID:21m00Tcm4TlvDq8ikWAM}
+      base-url: https://api.elevenlabs.io/v1
   storage:
     s3:
       endpoint: ${S3_ENDPOINT:}
