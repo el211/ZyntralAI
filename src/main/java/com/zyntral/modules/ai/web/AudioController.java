@@ -11,8 +11,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +63,19 @@ public class AudioController {
     @GetMapping("/voices")
     public ApiResponse<List<Map<String, String>>> voices(@PathVariable UUID workspaceId) {
         return ApiResponse.ok(service.voices(workspaceId, SecurityUtils.currentUserId()));
+    }
+
+    @Operation(summary = "Clone a voice from audio samples (requires your own ElevenLabs key)")
+    @PostMapping(value = "/voices/clone", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Map<String, String>> cloneVoice(@PathVariable UUID workspaceId,
+                                                       @RequestParam String name,
+                                                       @RequestParam(required = false) String description,
+                                                       @RequestParam("files") MultipartFile[] files) throws IOException {
+        List<byte[]> bytes = new java.util.ArrayList<>();
+        List<String> names = new java.util.ArrayList<>();
+        for (MultipartFile f : files) { bytes.add(f.getBytes()); names.add(f.getOriginalFilename()); }
+        return ApiResponse.ok(service.cloneVoice(workspaceId, SecurityUtils.currentUserId(),
+                name, description, bytes, names));
     }
 
     @Operation(summary = "Whether this workspace uses its own ElevenLabs key")

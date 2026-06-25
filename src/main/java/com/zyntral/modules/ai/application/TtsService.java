@@ -12,7 +12,9 @@ import com.zyntral.modules.workspace.domain.WorkspaceRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -115,6 +117,48 @@ public class TtsService {
             if (!usingOwn) credits.refund(workspaceId, TTS_COST);
             log.error("ElevenLabs TTS failed (voice={}, byok={})", voice, usingOwn, ex);
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Speech generation failed"});
+        }
+    }
+
+    /**
+     * Instant Voice Cloning: upload audio samples to create a new voice. Requires the workspace's
+     * OWN ElevenLabs key so the cloned voice is created in the user's account (not the platform's).
+     * Returns the new voice {voiceId, name}.
+     */
+    public Map<String, String> cloneVoice(UUID workspaceId, UUID userId, String name, String description,
+                                          List<byte[]> files, List<String> filenames) {
+        access.requireCanEdit(workspaceId, userId);
+        String ownKey = workspaceKey(workspaceId);
+        if (ownKey == null) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE,
+                    new Object[]{"Voice cloning requires your own ElevenLabs key (set it above first)"});
+        }
+        if (files == null || files.isEmpty()) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Upload at least one audio sample"});
+        }
+        MultipartBodyBuilder mb = new MultipartBodyBuilder();
+        mb.part("name", name == null || name.isBlank() ? "My voice" : name.trim());
+        if (description != null && !description.isBlank()) mb.part("description", description.trim());
+        for (int i = 0; i < files.size(); i++) {
+            final String fn = (filenames != null && i < filenames.size() && filenames.get(i) != null)
+                    ? filenames.get(i) : "sample" + i + ".mp3";
+            mb.part("files", new ByteArrayResource(files.get(i)) {
+                @Override public String getFilename() { return fn; }
+            });
+        }
+        try {
+            JsonNode res = client(ownKey).post()
+                    .uri("/voices/add")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(mb.build())
+                    .retrieve().body(JsonNode.class);
+            String voiceId = res.path("voice_id").asText(null);
+            if (voiceId == null || voiceId.isBlank()) throw new IllegalStateException("no voice_id returned");
+            return Map.of("voiceId", voiceId, "name", name == null ? "My voice" : name);
+        } catch (RuntimeException ex) {
+            log.error("ElevenLabs voice clone failed", ex);
+            throw new ApiException(ErrorCode.BUSINESS_RULE,
+                    new Object[]{"Voice cloning failed (needs a paid ElevenLabs plan that allows cloning)"});
         }
     }
 
