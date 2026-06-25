@@ -5,7 +5,10 @@ import com.zyntral.common.error.ApiException;
 import com.zyntral.common.error.ErrorCode;
 import com.zyntral.modules.ai.domain.AiAudio;
 import com.zyntral.modules.ai.domain.AiAudioRepository;
+import com.zyntral.modules.ai.domain.WorkspaceProviderKey;
+import com.zyntral.modules.ai.domain.WorkspaceProviderKeyRepository;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
+import com.zyntral.modules.workspace.domain.WorkspaceRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,49 +23,87 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Text-to-speech via ElevenLabs. Generates an MP3 from text using the chosen voice, stores it
- * in-DB, and charges {@link #TTS_COST} credits (refunded if the provider call fails).
+ * Text-to-speech via ElevenLabs. If the workspace has set its own ElevenLabs key (BYOK), that
+ * key is used and <b>no Zyntral credits are charged</b>; otherwise the platform key is used and
+ * {@link #TTS_COST} credits are charged (refunded on failure).
  */
 @Service
 public class TtsService {
 
     static final int TTS_COST = 3;
+    public static final String PROVIDER = "ELEVENLABS";
 
     private static final Logger log = LoggerFactory.getLogger(TtsService.class);
 
     private final AiAudioRepository audio;
+    private final WorkspaceProviderKeyRepository providerKeys;
     private final WorkspaceAccess access;
     private final AiCreditService credits;
-    private final RestClient client;
+    private final String baseUrl;
     private final String model;
     private final String defaultVoice;
-    private final boolean enabled;
+    private final String platformKey;
 
-    public TtsService(AiAudioRepository audio, WorkspaceAccess access, AiCreditService credits,
+    public TtsService(AiAudioRepository audio, WorkspaceProviderKeyRepository providerKeys,
+                      WorkspaceAccess access, AiCreditService credits,
                       @Value("${zyntral.ai.elevenlabs.api-key:}") String apiKey,
                       @Value("${zyntral.ai.elevenlabs.model:eleven_multilingual_v2}") String model,
                       @Value("${zyntral.ai.elevenlabs.voice-id:21m00Tcm4TlvDq8ikWAM}") String defaultVoice,
                       @Value("${zyntral.ai.elevenlabs.base-url:https://api.elevenlabs.io/v1}") String baseUrl) {
         this.audio = audio;
+        this.providerKeys = providerKeys;
         this.access = access;
         this.credits = credits;
         this.model = model;
         this.defaultVoice = defaultVoice;
-        this.enabled = apiKey != null && !apiKey.isBlank();
-        this.client = RestClient.builder().baseUrl(baseUrl)
-                .defaultHeader("xi-api-key", apiKey == null ? "" : apiKey).build();
+        this.baseUrl = baseUrl;
+        this.platformKey = apiKey == null ? "" : apiKey;
     }
+
+    // ---- BYOK management ----
+
+    @Transactional
+    public void setWorkspaceKey(UUID workspaceId, UUID userId, String apiKey) {
+        access.requireAtLeast(workspaceId, userId, WorkspaceRole.ADMIN);
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"API key is required"});
+        }
+        WorkspaceProviderKey existing = providerKeys.find(workspaceId, PROVIDER).orElse(null);
+        if (existing != null) {
+            existing.setApiKey(apiKey.trim());
+        } else {
+            providerKeys.save(new WorkspaceProviderKey(workspaceId, PROVIDER, apiKey.trim()));
+        }
+    }
+
+    @Transactional
+    public void clearWorkspaceKey(UUID workspaceId, UUID userId) {
+        access.requireAtLeast(workspaceId, userId, WorkspaceRole.ADMIN);
+        providerKeys.remove(workspaceId, PROVIDER);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasWorkspaceKey(UUID workspaceId, UUID userId) {
+        access.requireMember(workspaceId, userId);
+        return providerKeys.find(workspaceId, PROVIDER).isPresent();
+    }
+
+    // ---- generation ----
 
     public AiAudio generate(UUID workspaceId, UUID userId, String text, String voiceId) {
         access.requireCanEdit(workspaceId, userId);
-        if (!enabled) {
-            throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Text-to-speech is not configured"});
+        String ownKey = workspaceKey(workspaceId);
+        boolean usingOwn = ownKey != null;
+        String key = usingOwn ? ownKey : platformKey;
+        if (key.isBlank()) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE,
+                    new Object[]{"Text-to-speech is not configured — add your ElevenLabs key in Settings"});
         }
         String voice = (voiceId == null || voiceId.isBlank()) ? defaultVoice : voiceId;
 
-        credits.charge(workspaceId, TTS_COST);
+        if (!usingOwn) credits.charge(workspaceId, TTS_COST);
         try {
-            byte[] mp3 = client.post()
+            byte[] mp3 = client(key).post()
                     .uri("/text-to-speech/" + voice)
                     .accept(MediaType.parseMediaType("audio/mpeg"))
                     .contentType(MediaType.APPLICATION_JSON)
@@ -71,8 +112,8 @@ public class TtsService {
             if (mp3 == null || mp3.length == 0) throw new IllegalStateException("empty audio");
             return audio.save(AiAudio.create(workspaceId, userId, text, voice, "audio/mpeg", mp3));
         } catch (RuntimeException ex) {
-            credits.refund(workspaceId, TTS_COST);
-            log.error("ElevenLabs TTS failed (voice={})", voice, ex);
+            if (!usingOwn) credits.refund(workspaceId, TTS_COST);
+            log.error("ElevenLabs TTS failed (voice={}, byok={})", voice, usingOwn, ex);
             throw new ApiException(ErrorCode.BUSINESS_RULE, new Object[]{"Speech generation failed"});
         }
     }
@@ -83,12 +124,15 @@ public class TtsService {
         return audio.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
     }
 
-    /** Lists the account's available voices for the picker. Empty if not configured. */
+    /** Lists the workspace's available voices (own key if set, else platform). Empty if neither. */
+    @Transactional(readOnly = true)
     public List<Map<String, String>> voices(UUID workspaceId, UUID userId) {
         access.requireMember(workspaceId, userId);
-        if (!enabled) return List.of();
+        String ownKey = workspaceKey(workspaceId);
+        String key = ownKey != null ? ownKey : platformKey;
+        if (key.isBlank()) return List.of();
         try {
-            JsonNode res = client.get().uri("/voices").retrieve().body(JsonNode.class);
+            JsonNode res = client(key).get().uri("/voices").retrieve().body(JsonNode.class);
             List<Map<String, String>> out = new ArrayList<>();
             for (JsonNode v : res.path("voices")) {
                 out.add(Map.of("voiceId", v.path("voice_id").asText(""),
@@ -99,5 +143,15 @@ public class TtsService {
             log.warn("Could not list ElevenLabs voices", ex);
             return List.of();
         }
+    }
+
+    // ---- helpers ----
+
+    private String workspaceKey(UUID workspaceId) {
+        return providerKeys.find(workspaceId, PROVIDER).map(WorkspaceProviderKey::getApiKey).orElse(null);
+    }
+
+    private RestClient client(String key) {
+        return RestClient.builder().baseUrl(baseUrl).defaultHeader("xi-api-key", key).build();
     }
 }

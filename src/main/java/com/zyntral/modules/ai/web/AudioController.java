@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -29,6 +30,10 @@ public class AudioController {
     }
 
     public record GenerateAudioRequest(@NotBlank @Size(max = 5000) String text, String voiceId) {}
+
+    public record SetKeyRequest(@NotBlank String apiKey) {}
+
+    public record KeyStatusResponse(boolean usingOwnKey) {}
 
     public record AudioResponse(UUID id, String textExcerpt, String voice, Instant createdAt) {
         static AudioResponse of(AiAudio a) {
@@ -55,5 +60,26 @@ public class AudioController {
     @GetMapping("/voices")
     public ApiResponse<List<Map<String, String>>> voices(@PathVariable UUID workspaceId) {
         return ApiResponse.ok(service.voices(workspaceId, SecurityUtils.currentUserId()));
+    }
+
+    @Operation(summary = "Whether this workspace uses its own ElevenLabs key")
+    @GetMapping("/key")
+    public ApiResponse<KeyStatusResponse> keyStatus(@PathVariable UUID workspaceId) {
+        return ApiResponse.ok(new KeyStatusResponse(
+                service.hasWorkspaceKey(workspaceId, SecurityUtils.currentUserId())));
+    }
+
+    @Operation(summary = "Set this workspace's own ElevenLabs key (ADMIN+) — uses no Zyntral credits")
+    @PutMapping("/key")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setKey(@PathVariable UUID workspaceId, @Valid @RequestBody SetKeyRequest req) {
+        service.setWorkspaceKey(workspaceId, SecurityUtils.currentUserId(), req.apiKey());
+    }
+
+    @Operation(summary = "Remove this workspace's own ElevenLabs key (ADMIN+)")
+    @DeleteMapping("/key")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearKey(@PathVariable UUID workspaceId) {
+        service.clearWorkspaceKey(workspaceId, SecurityUtils.currentUserId());
     }
 }
