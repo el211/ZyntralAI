@@ -48,6 +48,13 @@ public class DubbingController {
         return ApiResponse.ok(new CredentialStatusResponse(true));
     }
 
+    @Operation(summary = "Remove this workspace's ElevenLabs API key (shared with Speech)")
+    @DeleteMapping("/credential")
+    public ApiResponse<CredentialStatusResponse> removeCredential(@PathVariable UUID workspaceId) {
+        dubbing.clearCredential(workspaceId, SecurityUtils.currentUserId());
+        return ApiResponse.ok(new CredentialStatusResponse(false));
+    }
+
     @Operation(summary = "Submit a video for dubbing into a target language")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<DubbingJobResponse> startDub(

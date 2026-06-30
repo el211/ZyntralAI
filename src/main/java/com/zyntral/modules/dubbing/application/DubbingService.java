@@ -69,6 +69,13 @@ public class DubbingService {
         return providerKeys.find(workspaceId, PROVIDER).isPresent();
     }
 
+    /** Removes the shared ElevenLabs key (also disables Speech/voice-cloning BYOK — it's one key). */
+    @Transactional
+    public void clearCredential(UUID workspaceId, UUID userId) {
+        access.requireAtLeast(workspaceId, userId, WorkspaceRole.ADMIN);
+        providerKeys.remove(workspaceId, PROVIDER);
+    }
+
     // ---- dubbing -----------------------------------------------------------
 
     /** Submit a video for dubbing. {@code sourceLang} may be null/blank to auto-detect. */
