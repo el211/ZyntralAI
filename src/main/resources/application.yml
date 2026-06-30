@@ -29,8 +29,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 25MB
-      max-request-size: 50MB
+      max-file-size: ${MAX_UPLOAD_SIZE:200MB}
+      max-request-size: ${MAX_UPLOAD_SIZE:200MB}
 
   data:
     redis:
@@ -57,6 +57,11 @@ spring:
     basename: i18n/messages
     encoding: UTF-8
     fallback-to-system-locale: false
+
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_SIZE:200MB}
+      max-request-size: ${MAX_UPLOAD_SIZE:200MB}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -104,6 +109,8 @@ zyntral:
       model: ${ELEVENLABS_MODEL:eleven_multilingual_v2}
       voice-id: ${ELEVENLABS_VOICE_ID:21m00Tcm4TlvDq8ikWAM}
       base-url: https://api.elevenlabs.io/v1
+  dubbing:
+    base-url: ${ELEVENLABS_BASE_URL:https://api.elevenlabs.io}
   storage:
     s3:
       endpoint: ${S3_ENDPOINT:}
