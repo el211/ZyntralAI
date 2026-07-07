@@ -58,11 +58,6 @@ spring:
     encoding: UTF-8
     fallback-to-system-locale: false
 
-  servlet:
-    multipart:
-      max-file-size: ${MAX_UPLOAD_SIZE:200MB}
-      max-request-size: ${MAX_UPLOAD_SIZE:200MB}
-
 server:
   port: ${SERVER_PORT:8080}
   servlet:
