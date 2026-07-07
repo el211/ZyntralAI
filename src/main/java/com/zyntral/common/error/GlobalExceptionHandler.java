@@ -1,6 +1,7 @@
 package com.zyntral.common.error;
 
 import com.zyntral.common.i18n.MessageService;
+import com.zyntral.modules.dubbing.infrastructure.DubbingException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex, HttpServletRequest req) {
         return build(ErrorCode.FORBIDDEN,
                 messages.get(ErrorCode.FORBIDDEN.messageKey()), req, null);
+    }
+
+    @ExceptionHandler(DubbingException.class)
+    public ResponseEntity<ApiError> handleDubbing(DubbingException ex, HttpServletRequest req) {
+        log.warn("Dubbing error on {} {}: {}", req.getMethod(), req.getRequestURI(), ex.getMessage());
+        return build(ErrorCode.BUSINESS_RULE, ex.getMessage(), req, null);
     }
 
     @ExceptionHandler(Exception.class)

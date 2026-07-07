@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.UUID;
 
-@Tag(name = "Dubbing", description = "Translate a video into another language in the speaker's own voice (ElevenLabs, BYOK)")
+@Tag(name = "Dubbing", description = "Translate an audio/video file into another language in the speaker's own voice (ElevenLabs, BYOK)")
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/workspaces/{workspaceId}/dubbing")
 public class DubbingController {
@@ -55,7 +55,7 @@ public class DubbingController {
         return ApiResponse.ok(new CredentialStatusResponse(false));
     }
 
-    @Operation(summary = "Submit a video for dubbing into a target language")
+    @Operation(summary = "Submit an audio or video file for dubbing into a target language")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<DubbingJobResponse> startDub(
             @PathVariable UUID workspaceId,

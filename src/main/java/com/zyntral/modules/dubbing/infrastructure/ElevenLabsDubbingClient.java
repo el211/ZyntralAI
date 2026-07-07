@@ -117,7 +117,7 @@ public class ElevenLabsDubbingClient {
         private final String filename;
         private NamedByteArrayResource(byte[] bytes, String filename, String contentType) {
             super(bytes);
-            this.filename = filename != null && !filename.isBlank() ? filename : "video.mp4";
+            this.filename = filename != null && !filename.isBlank() ? filename : "audio.mp3";
         }
         @Override
         public String getFilename() {
