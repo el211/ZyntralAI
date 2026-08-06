@@ -1,5 +1,6 @@
 # Production stack: nginx → (frontend, backend) → external postgres + redis.
 # Postgres and Redis are managed separately in Coolify — supply connection details via env vars.
+# The backend joins the `coolify` network so it can reach Coolify-managed postgres/redis containers by hostname.
 # Usage: docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 services:
   backend:
@@ -24,6 +25,9 @@ services:
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
+    networks:
+      - default
+      - coolify
     restart: unless-stopped
 
   frontend:
@@ -45,3 +49,7 @@ services:
       - frontend
       - backend
     restart: unless-stopped
+
+networks:
+  coolify:
+    external: true
