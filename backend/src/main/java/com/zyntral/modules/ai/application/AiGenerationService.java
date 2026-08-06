@@ -2,6 +2,7 @@ package com.zyntral.modules.ai.application;
 
 import com.zyntral.common.web.PageResponse;
 import com.zyntral.modules.ai.domain.*;
+import com.zyntral.modules.ai.web.dto.AiDtos.GitHubGenerateRequest;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -22,15 +23,17 @@ public class AiGenerationService {
     private final AiProviderRegistry registry;
     private final PromptBuilder prompts;
     private final AiGenerationRepository generations;
+    private final GitHubCommitService gitHub;
 
     public AiGenerationService(WorkspaceAccess access, AiCreditService credits,
                                AiProviderRegistry registry, PromptBuilder prompts,
-                               AiGenerationRepository generations) {
+                               AiGenerationRepository generations, GitHubCommitService gitHub) {
         this.access = access;
         this.credits = credits;
         this.registry = registry;
         this.prompts = prompts;
         this.generations = generations;
+        this.gitHub = gitHub;
     }
 
     public record GenerateCommand(
@@ -88,6 +91,42 @@ public class AiGenerationService {
         generations.save(g);
         return new GenerationResult(g.getId(), completion.text(), providerKind, completion.model(),
                 completion.promptTokens(), completion.outputTokens(), cost);
+    }
+
+    /** Fetch a GitHub commit and generate a LinkedIn post from it. */
+    public GenerationResult generateFromGitHub(UUID workspaceId, UUID userId, GitHubGenerateRequest req) {
+        access.requireCanEdit(workspaceId, userId);
+
+        AiLength length = req.length() != null ? req.length() : AiLength.MEDIUM;
+        int cost = creditCost(length);
+        credits.charge(workspaceId, cost);
+
+        try {
+            GitHubCommitService.CommitSummary commit =
+                    gitHub.fetch(req.repoUrl(), req.commitSha(), req.githubToken());
+
+            AiProvider provider = registry.resolve(req.provider());
+            PromptBuilder.Prompt prompt = prompts.buildFromGitHubCommit(
+                    commit, req.tone(), length, req.language());
+
+            long start = System.currentTimeMillis();
+            AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
+                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7));
+            int latency = (int) (System.currentTimeMillis() - start);
+
+            AiGeneration g = AiGeneration.success(
+                    workspaceId, userId, provider.kind(), completion.model(),
+                    AiContentKind.LINKEDIN_POST, req.tone(), length,
+                    req.language() == null ? "en" : req.language(),
+                    prompt.user(), completion.text(),
+                    completion.promptTokens(), completion.outputTokens(), cost, latency);
+            generations.save(g);
+            return new GenerationResult(g.getId(), completion.text(), provider.kind(), completion.model(),
+                    completion.promptTokens(), completion.outputTokens(), cost);
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, cost);
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)

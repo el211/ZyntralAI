@@ -17,6 +17,43 @@ public class PromptBuilder {
 
     public record Prompt(String system, String user) {}
 
+    /** Build a LinkedIn post prompt from a GitHub commit summary. */
+    public Prompt buildFromGitHubCommit(GitHubCommitService.CommitSummary commit,
+                                        AiTone tone, AiLength length, String language) {
+        String system = """
+                You are Zyntral AI, an expert developer-relations and technical content writer.
+                Write an engaging LinkedIn post about a GitHub commit. Use a %s tone. Target length: %s.
+                Respond in %s. Output only the finished post — no preamble, no explanations,
+                no surrounding quotation marks.
+                The post should highlight the value of the work, tell a story about what was built or fixed,
+                and feel authentic for a technical professional audience. Add 3-5 relevant hashtags at the end."""
+                .formatted(
+                        tone == null ? "professional" : tone.name().toLowerCase(Locale.ROOT),
+                        lengthHint(length),
+                        languageName(language));
+
+        String fileList = commit.changedFiles().isEmpty() ? "none listed" :
+                String.join(", ", commit.changedFiles());
+
+        String user = """
+                Write a LinkedIn post about the following GitHub commit:
+
+                Repository: %s/%s
+                Commit: %s
+                Author: %s
+                Commit message: %s
+                Changes: +%d additions, -%d deletions across %d file(s)
+                Files changed: %s""".formatted(
+                commit.repoOwner(), commit.repoName(),
+                commit.shortSha(),
+                commit.author(),
+                commit.message(),
+                commit.additions(), commit.deletions(), commit.filesChanged(),
+                fileList);
+
+        return new Prompt(system, user);
+    }
+
     public Prompt build(AiContentKind kind, AiTone tone, AiLength length,
                         String language, String topic, String extraContext) {
         String system = systemPrompt(kind, tone, length, language);

@@ -54,6 +54,13 @@ public class AiController {
                 generation.history(workspaceId, SecurityUtils.currentUserId(), page, Math.min(size, 100)));
     }
 
+    @Operation(summary = "Generate a LinkedIn post from a GitHub commit (charges credits)")
+    @PostMapping("/generate/from-github")
+    public ApiResponse<GenerationResult> generateFromGitHub(@PathVariable UUID workspaceId,
+                                                            @Valid @RequestBody GitHubGenerateRequest req) {
+        return ApiResponse.ok(generation.generateFromGitHub(workspaceId, SecurityUtils.currentUserId(), req));
+    }
+
     @Operation(summary = "Get this month's AI credit usage")
     @GetMapping("/credits")
     public ApiResponse<CreditUsageResponse> credits(@PathVariable UUID workspaceId) {

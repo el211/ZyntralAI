@@ -23,5 +23,16 @@ public final class AiDtos {
             String model               // optional — defaults to the provider's model
     ) {}
 
+    public record GitHubGenerateRequest(
+            @NotBlank @Size(max = 500) String repoUrl,
+            @Size(max = 40) String commitSha,   // optional — defaults to latest commit
+            String githubToken,                  // optional — for private repos
+            AiTone tone,
+            AiLength length,
+            String language,
+            AiProviderKind provider,
+            String model
+    ) {}
+
     public record CreditUsageResponse(int limit, int used, int remaining) {}
 }

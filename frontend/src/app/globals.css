@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,40 +6,42 @@
 
 @layer base {
   :root {
-    --background: 230 20% 97%;
-    --foreground: 230 20% 8%;
+    /* Linear light mode */
+    --background: 240 6% 97%;
+    --foreground: 240 10% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 230 20% 8%;
-    --primary: 42 96% 54%;
-    --primary-foreground: 230 22% 5%;
-    --secondary: 230 10% 92%;
-    --secondary-foreground: 230 15% 20%;
-    --muted: 230 10% 92%;
-    --muted-foreground: 230 8% 46%;
+    --card-foreground: 240 10% 8%;
+    --primary: 237 54% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 240 8% 25%;
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 4% 48%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 230 8% 86%;
-    --input: 230 8% 86%;
-    --ring: 42 96% 54%;
-    --radius: 0.5rem;
+    --border: 240 5% 87%;
+    --input: 240 5% 87%;
+    --ring: 237 54% 58%;
+    --radius: 0.375rem;
   }
 
   .dark {
-    --background: 230 22% 5%;
-    --foreground: 230 10% 95%;
-    --card: 230 18% 8%;
-    --card-foreground: 230 10% 95%;
-    --primary: 42 96% 54%;
-    --primary-foreground: 230 22% 5%;
-    --secondary: 230 12% 13%;
-    --secondary-foreground: 230 10% 80%;
-    --muted: 230 12% 13%;
-    --muted-foreground: 230 8% 52%;
+    /* Linear.app dark palette */
+    --background: 240 8% 7%;
+    --foreground: 240 8% 93%;
+    --card: 240 6% 10%;
+    --card-foreground: 240 8% 93%;
+    --primary: 237 54% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 240 6% 78%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 4% 54%;
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 230 10% 15%;
-    --input: 230 10% 15%;
-    --ring: 42 96% 54%;
+    --border: 240 5% 16%;
+    --input: 240 5% 13%;
+    --ring: 237 54% 62%;
   }
 
   * {
@@ -48,45 +50,66 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Linear-style slim scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Linear focus ring */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.55);
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) - 1px);
   }
 }
 
 @layer utilities {
-  .font-syne {
-    font-family: 'Syne', system-ui, sans-serif;
-  }
-
   .auth-grid-bg {
     background-image:
-      linear-gradient(rgba(245, 179, 25, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(245, 179, 25, 0.05) 1px, transparent 1px);
-    background-size: 48px 48px;
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
   .auth-glow {
-    background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(245, 179, 25, 0.18) 0%, transparent 70%);
+    background: radial-gradient(ellipse 60% 50% at 50% 40%, hsl(var(--primary) / 0.14) 0%, transparent 70%);
   }
 
   .card-glow {
-    box-shadow: 0 0 0 1px hsl(var(--border)), 0 4px 24px rgba(0,0,0,0.25);
+    box-shadow:
+      0 0 0 1px hsl(var(--border)),
+      0 1px 3px hsl(0 0% 0% / 0.1),
+      0 8px 20px hsl(0 0% 0% / 0.06);
   }
 
   .stat-card-glow {
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(230 14% 10%) 100%);
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%);
+  }
+
+  /* Linear-style pill badge */
+  .badge-linear {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
   }
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
@@ -96,15 +119,15 @@
 
 @keyframes shimmer {
   from { background-position: -200% center; }
-  to   { background-position: 200% center; }
+  to   { background-position:  200% center; }
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fadeInUp 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease both;
+  animation: fadeIn 0.2s ease both;
 }
 
 .animate-delay-100 { animation-delay: 0.1s; }
