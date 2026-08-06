@@ -1,4 +1,0 @@
-com\zyntral\modules\content\domain\PostTest.class
-com\zyntral\common\crypto\StringCryptoConverterTest.class
-com\zyntral\common\security\JwtServiceTest.class
-com\zyntral\modules\ai\application\AiCreditServiceTest.class

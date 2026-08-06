@@ -1,0 +1,43 @@
+# Zyntral self-hosted voice service (OpenVoice v2 + MeloTTS, CPU).
+FROM python:3.10-slim
+
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git ffmpeg pkg-config build-essential curl unzip ca-certificates \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libavfilter-dev libswscale-dev libswresample-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Newer pip resolves wheels better than the image default (23.x)
+RUN pip install --no-cache-dir --upgrade pip
+
+# CPU-only PyTorch (smaller, no CUDA)
+RUN pip install --no-cache-dir torch==2.2.2 torchaudio==2.2.2 \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# Pre-install a modern PyAV (has cp310 wheels, builds against ffmpeg 7) and the numpy
+# OpenVoice expects, so OpenVoice doesn't try to compile the incompatible av==10 from source.
+RUN pip install --no-cache-dir "av>=11,<15" "numpy==1.22.0"
+
+# OpenVoice — relax its strict av==10 pin so it uses the wheel above
+RUN git clone --depth 1 https://github.com/myshell-ai/OpenVoice.git /opt/OpenVoice \
+    && sed -i -E 's/\bav==10[^ ,'\'']*/av/g' /opt/OpenVoice/requirements.txt /opt/OpenVoice/setup.py 2>/dev/null || true \
+    && pip install --no-cache-dir -e /opt/OpenVoice
+RUN git clone --depth 1 https://github.com/myshell-ai/MeloTTS.git /opt/MeloTTS \
+    && pip install --no-cache-dir -e /opt/MeloTTS \
+    && python -m unidic download
+RUN python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng'); nltk.download('cmudict')" || true
+
+# OpenVoice v2 checkpoints
+RUN curl -L -o /tmp/ckpt.zip https://myshell-public-repo-host.s3.amazonaws.com/openvoice/checkpoints_v2_0417.zip \
+    && unzip -q /tmp/ckpt.zip -d /app && rm /tmp/ckpt.zip
+
+RUN pip install --no-cache-dir fastapi "uvicorn[standard]" python-multipart
+
+COPY app.py /app/app.py
+
+ENV OPENVOICE_CKPT=/app/checkpoints_v2 VOICE_DATA_DIR=/data/voices
+EXPOSE 8000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
