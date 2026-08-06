@@ -3,7 +3,7 @@
 # The backend joins the `coolify` network so it can reach Coolify-managed postgres/redis containers by hostname.
 # Usage: docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 services:
-  backend:
+  zyntral-api:
     build: ./backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -30,7 +30,7 @@ services:
       - coolify
     restart: unless-stopped
 
-  frontend:
+  zyntral-web:
     build:
       context: ./frontend
       args:
@@ -38,7 +38,7 @@ services:
     environment:
       NODE_ENV: production
     depends_on:
-      - backend
+      - zyntral-api
     restart: unless-stopped
 
   nginx:
@@ -46,8 +46,8 @@ services:
       context: .
       dockerfile: infra/nginx/Dockerfile
     depends_on:
-      - frontend
-      - backend
+      - zyntral-web
+      - zyntral-api
     restart: unless-stopped
 
 networks:
