@@ -1,49 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --background: 230 20% 97%;
+    --foreground: 230 20% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
-    --primary: 250 84% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --card-foreground: 230 20% 8%;
+    --primary: 42 96% 54%;
+    --primary-foreground: 230 22% 5%;
+    --secondary: 230 10% 92%;
+    --secondary-foreground: 230 15% 20%;
+    --muted: 230 10% 92%;
+    --muted-foreground: 230 8% 46%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 250 84% 60%;
-    --radius: 0.6rem;
+    --border: 230 8% 86%;
+    --input: 230 8% 86%;
+    --ring: 42 96% 54%;
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 8% 7%;
-    --card-foreground: 0 0% 98%;
-    --primary: 250 84% 67%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 65%;
-    --destructive: 0 62% 50%;
+    --background: 230 22% 5%;
+    --foreground: 230 10% 95%;
+    --card: 230 18% 8%;
+    --card-foreground: 230 10% 95%;
+    --primary: 42 96% 54%;
+    --primary-foreground: 230 22% 5%;
+    --secondary: 230 12% 13%;
+    --secondary-foreground: 230 10% 80%;
+    --muted: 230 12% 13%;
+    --muted-foreground: 230 8% 52%;
+    --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 250 84% 67%;
+    --border: 230 10% 15%;
+    --input: 230 10% 15%;
+    --ring: 42 96% 54%;
   }
 
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
+
+@layer utilities {
+  .font-syne {
+    font-family: 'Syne', system-ui, sans-serif;
+  }
+
+  .auth-grid-bg {
+    background-image:
+      linear-gradient(rgba(245, 179, 25, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245, 179, 25, 0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .auth-glow {
+    background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(245, 179, 25, 0.18) 0%, transparent 70%);
+  }
+
+  .card-glow {
+    box-shadow: 0 0 0 1px hsl(var(--border)), 0 4px 24px rgba(0,0,0,0.25);
+  }
+
+  .stat-card-glow {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(230 14% 10%) 100%);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
