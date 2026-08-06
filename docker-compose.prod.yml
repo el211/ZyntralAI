@@ -41,8 +41,6 @@ services:
     build:
       context: .
       dockerfile: infra/nginx/Dockerfile
-    ports:
-      - "80:80"
     depends_on:
       - frontend
       - backend
