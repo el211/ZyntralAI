@@ -42,6 +42,10 @@ public class AnthropicProvider implements AiProvider {
     @Override
     public AiCompletion complete(AiRequest request) {
         String model = request.model() != null ? request.model() : config.model();
+        // When the workspace supplies their own API key, build a one-off client with it
+        RestClient activeClient = (request.apiKey() != null && !request.apiKey().isBlank())
+                ? client.mutate().defaultHeader("x-api-key", request.apiKey()).build()
+                : client;
         Map<String, Object> body = Map.of(
                 "model", model,
                 "max_tokens", request.maxTokens(),
@@ -50,7 +54,7 @@ public class AnthropicProvider implements AiProvider {
                 "messages", List.of(Map.of("role", "user", "content", request.userPrompt()))
         );
         try {
-            JsonNode res = client.post()
+            JsonNode res = activeClient.post()
                     .uri("/messages")
                     .body(body)
                     .retrieve()

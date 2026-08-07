@@ -57,8 +57,11 @@ public class OpenAiProvider implements AiProvider {
         if (!newGen) {
             body.put("temperature", request.temperature());
         }
+        RestClient activeClient = (request.apiKey() != null && !request.apiKey().isBlank())
+                ? client.mutate().defaultHeader("Authorization", "Bearer " + request.apiKey()).build()
+                : client;
         try {
-            JsonNode res = client.post()
+            JsonNode res = activeClient.post()
                     .uri("/chat/completions")
                     .body(body)
                     .retrieve()

@@ -47,8 +47,11 @@ public class GeminiProvider implements AiProvider {
                         "maxOutputTokens", request.maxTokens(),
                         "temperature", request.temperature())
         );
+        RestClient activeClient = (request.apiKey() != null && !request.apiKey().isBlank())
+                ? client.mutate().defaultHeader("x-goog-api-key", request.apiKey()).build()
+                : client;
         try {
-            JsonNode res = client.post()
+            JsonNode res = activeClient.post()
                     .uri("/models/" + model + ":generateContent")
                     .body(body)
                     .retrieve()

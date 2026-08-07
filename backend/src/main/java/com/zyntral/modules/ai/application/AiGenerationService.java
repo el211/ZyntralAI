@@ -2,6 +2,7 @@ package com.zyntral.modules.ai.application;
 
 import com.zyntral.common.web.PageResponse;
 import com.zyntral.modules.ai.domain.*;
+import com.zyntral.modules.ai.domain.WorkspaceProviderKeyRepository;
 import com.zyntral.modules.ai.web.dto.AiDtos.GitHubGenerateRequest;
 import com.zyntral.modules.ai.web.dto.AiDtos.GitHubFeatureRequest;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
@@ -26,11 +27,13 @@ public class AiGenerationService {
     private final AiGenerationRepository generations;
     private final GitHubCommitService gitHub;
     private final GitHubRepoService gitHubRepo;
+    private final WorkspaceProviderKeyRepository providerKeys;
 
     public AiGenerationService(WorkspaceAccess access, AiCreditService credits,
                                AiProviderRegistry registry, PromptBuilder prompts,
                                AiGenerationRepository generations, GitHubCommitService gitHub,
-                               GitHubRepoService gitHubRepo) {
+                               GitHubRepoService gitHubRepo,
+                               WorkspaceProviderKeyRepository providerKeys) {
         this.access = access;
         this.credits = credits;
         this.registry = registry;
@@ -38,6 +41,7 @@ public class AiGenerationService {
         this.generations = generations;
         this.gitHub = gitHub;
         this.gitHubRepo = gitHubRepo;
+        this.providerKeys = providerKeys;
     }
 
     public record GenerateCommand(
@@ -56,20 +60,24 @@ public class AiGenerationService {
         access.requireCanEdit(cmd.workspaceId(), cmd.userId());
 
         AiLength length = cmd.length() != null ? cmd.length() : AiLength.MEDIUM;
-        int cost = creditCost(length);
+        AiProvider provider = registry.resolve(cmd.provider());
+
+        // Resolve BYOK key for this workspace + provider
+        String byokKey = providerKeys.find(cmd.workspaceId(), provider.kind().name())
+                .map(k -> k.getApiKey()).orElse(null);
+        int cost = byokKey != null ? byokCreditCost(length) : creditCost(length);
 
         // 1. charge first (own tx) so we never overspend under concurrency
         credits.charge(cmd.workspaceId(), cost);
 
         try {
             // 2. call the provider OUTSIDE any DB transaction
-            AiProvider provider = registry.resolve(cmd.provider());
             PromptBuilder.Prompt prompt = prompts.build(cmd.contentKind(), cmd.tone(), length,
                     cmd.language(), cmd.topic(), cmd.extraContext());
 
             long start = System.currentTimeMillis();
             AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
-                    prompt.system(), prompt.user(), cmd.model(), length.maxTokens(), 0.7));
+                    prompt.system(), prompt.user(), cmd.model(), length.maxTokens(), 0.7, byokKey));
             int latency = (int) (System.currentTimeMillis() - start);
 
             // 3. persist the record (own tx)
@@ -102,20 +110,22 @@ public class AiGenerationService {
         access.requireCanEdit(workspaceId, userId);
 
         AiLength length = req.length() != null ? req.length() : AiLength.MEDIUM;
-        int cost = creditCost(length);
+        AiProvider provider = registry.resolve(req.provider());
+        String byokKey = providerKeys.find(workspaceId, provider.kind().name())
+                .map(k -> k.getApiKey()).orElse(null);
+        int cost = byokKey != null ? byokCreditCost(length) : creditCost(length);
         credits.charge(workspaceId, cost);
 
         try {
             GitHubCommitService.CommitSummary commit =
                     gitHub.fetch(req.repoUrl(), req.commitSha(), req.githubToken());
 
-            AiProvider provider = registry.resolve(req.provider());
             PromptBuilder.Prompt prompt = prompts.buildFromGitHubCommit(
                     commit, req.tone(), length, req.language());
 
             long start = System.currentTimeMillis();
             AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
-                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7));
+                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7, byokKey));
             int latency = (int) (System.currentTimeMillis() - start);
 
             AiGeneration g = AiGeneration.success(
@@ -139,7 +149,10 @@ public class AiGenerationService {
 
         AiContentKind kind = req.contentKind() != null ? req.contentKind() : AiContentKind.LINKEDIN_POST;
         AiLength length = req.length() != null ? req.length() : AiLength.MEDIUM;
-        int cost = creditCost(length);
+        AiProvider provider = registry.resolve(req.provider());
+        String byokKey = providerKeys.find(workspaceId, provider.kind().name())
+                .map(k -> k.getApiKey()).orElse(null);
+        int cost = byokKey != null ? byokCreditCost(length) : creditCost(length);
         credits.charge(workspaceId, cost);
 
         try {
@@ -147,13 +160,12 @@ public class AiGenerationService {
                     req.repoUrl(), req.featureName(), req.featureDescription(),
                     req.filePaths(), req.githubToken());
 
-            AiProvider provider = registry.resolve(req.provider());
             PromptBuilder.Prompt prompt = prompts.buildFromGitHubFeature(
                     ctx, kind, req.tone(), length, req.language());
 
             long start = System.currentTimeMillis();
             AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
-                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7));
+                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7, byokKey));
             int latency = (int) (System.currentTimeMillis() - start);
 
             AiGeneration g = AiGeneration.success(
@@ -181,11 +193,22 @@ public class AiGenerationService {
         return PageResponse.from(result);
     }
 
+    /** Full platform credit cost (uses Zyntral's own API key). */
     private int creditCost(AiLength length) {
         return switch (length) {
             case SHORT -> 1;
             case MEDIUM -> 2;
             case LONG -> 3;
+        };
+    }
+
+    /** Discounted cost when the workspace provides its own API key (BYOK).
+     *  The platform still charges 1 credit to cover infrastructure + processing. */
+    private int byokCreditCost(AiLength length) {
+        return switch (length) {
+            case SHORT -> 0;  // free with own key
+            case MEDIUM -> 1; // half of normal
+            case LONG -> 1;   // half of normal
         };
     }
 }
