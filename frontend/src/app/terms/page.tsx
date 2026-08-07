@@ -15,7 +15,7 @@ export default function TermsPage() {
         <section style={{ marginBottom: "36px" }}>
           <h2 style={h2}>1. Acceptance of Terms</h2>
           <p style={p}>
-            By accessing or using Zyntral AI ("the Service"), you agree to be bound by these Terms of Service.
+            By accessing or using Zyntral AI (&quot;the Service&quot;), you agree to be bound by these Terms of Service.
             If you do not agree to these terms, do not use the Service.
           </p>
         </section>
@@ -77,7 +77,7 @@ export default function TermsPage() {
         <section style={{ marginBottom: "36px" }}>
           <h2 style={h2}>8. Limitation of Liability</h2>
           <p style={p}>
-            The Service is provided "as is" without warranties of any kind. OreoStudios shall not be liable
+            The Service is provided &quot;as is&quot; without warranties of any kind. OreoStudios shall not be liable
             for any indirect, incidental, or consequential damages arising from your use of the Service.
           </p>
         </section>
