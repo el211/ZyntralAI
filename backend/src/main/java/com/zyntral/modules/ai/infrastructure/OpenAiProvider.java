@@ -39,7 +39,7 @@ public class OpenAiProvider implements AiProvider {
         String model = request.model() != null ? request.model() : config.model();
         Map<String, Object> body = Map.of(
                 "model", model,
-                "max_tokens", request.maxTokens(),
+                "max_completion_tokens", request.maxTokens(),
                 "temperature", request.temperature(),
                 "messages", List.of(
                         Map.of("role", "system", "content", request.systemPrompt() == null ? "" : request.systemPrompt()),
