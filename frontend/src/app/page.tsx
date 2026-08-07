@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Sparkles, CalendarClock, Users, BarChart3, Github, Zap } from "lucide-react";
