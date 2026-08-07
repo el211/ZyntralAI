@@ -8,6 +8,7 @@ import com.zyntral.modules.ai.application.AiCreditService;
 import com.zyntral.modules.ai.application.AiGenerationService;
 import com.zyntral.modules.ai.application.AiGenerationService.GenerateCommand;
 import com.zyntral.modules.ai.application.AiGenerationService.GenerationResult;
+import com.zyntral.modules.ai.web.dto.AiDtos;
 import com.zyntral.modules.ai.web.dto.AiDtos.*;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,6 +60,14 @@ public class AiController {
     public ApiResponse<GenerationResult> generateFromGitHub(@PathVariable UUID workspaceId,
                                                             @Valid @RequestBody GitHubGenerateRequest req) {
         return ApiResponse.ok(generation.generateFromGitHub(workspaceId, SecurityUtils.currentUserId(), req));
+    }
+
+    @Operation(summary = "Generate a post from a GitHub repository feature — fetches relevant code and writes a post (charges credits)")
+    @PostMapping("/generate/from-github-feature")
+    public ApiResponse<GenerationResult> generateFromGitHubFeature(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody AiDtos.GitHubFeatureRequest req) {
+        return ApiResponse.ok(generation.generateFromGitHubFeature(workspaceId, SecurityUtils.currentUserId(), req));
     }
 
     @Operation(summary = "Get this month's AI credit usage")

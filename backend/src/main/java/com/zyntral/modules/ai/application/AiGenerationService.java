@@ -3,6 +3,7 @@ package com.zyntral.modules.ai.application;
 import com.zyntral.common.web.PageResponse;
 import com.zyntral.modules.ai.domain.*;
 import com.zyntral.modules.ai.web.dto.AiDtos.GitHubGenerateRequest;
+import com.zyntral.modules.ai.web.dto.AiDtos.GitHubFeatureRequest;
 import com.zyntral.modules.workspace.application.WorkspaceAccess;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,16 +25,19 @@ public class AiGenerationService {
     private final PromptBuilder prompts;
     private final AiGenerationRepository generations;
     private final GitHubCommitService gitHub;
+    private final GitHubRepoService gitHubRepo;
 
     public AiGenerationService(WorkspaceAccess access, AiCreditService credits,
                                AiProviderRegistry registry, PromptBuilder prompts,
-                               AiGenerationRepository generations, GitHubCommitService gitHub) {
+                               AiGenerationRepository generations, GitHubCommitService gitHub,
+                               GitHubRepoService gitHubRepo) {
         this.access = access;
         this.credits = credits;
         this.registry = registry;
         this.prompts = prompts;
         this.generations = generations;
         this.gitHub = gitHub;
+        this.gitHubRepo = gitHubRepo;
     }
 
     public record GenerateCommand(
@@ -117,6 +121,44 @@ public class AiGenerationService {
             AiGeneration g = AiGeneration.success(
                     workspaceId, userId, provider.kind(), completion.model(),
                     AiContentKind.LINKEDIN_POST, req.tone(), length,
+                    req.language() == null ? "en" : req.language(),
+                    prompt.user(), completion.text(),
+                    completion.promptTokens(), completion.outputTokens(), cost, latency);
+            generations.save(g);
+            return new GenerationResult(g.getId(), completion.text(), provider.kind(), completion.model(),
+                    completion.promptTokens(), completion.outputTokens(), cost);
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, cost);
+            throw ex;
+        }
+    }
+
+    /** Fetch GitHub repo code for a feature and generate a post about it. */
+    public GenerationResult generateFromGitHubFeature(UUID workspaceId, UUID userId, GitHubFeatureRequest req) {
+        access.requireCanEdit(workspaceId, userId);
+
+        AiContentKind kind = req.contentKind() != null ? req.contentKind() : AiContentKind.LINKEDIN_POST;
+        AiLength length = req.length() != null ? req.length() : AiLength.MEDIUM;
+        int cost = creditCost(length);
+        credits.charge(workspaceId, cost);
+
+        try {
+            GitHubRepoService.FeatureCodeContext ctx = gitHubRepo.fetch(
+                    req.repoUrl(), req.featureName(), req.featureDescription(),
+                    req.filePaths(), req.githubToken());
+
+            AiProvider provider = registry.resolve(req.provider());
+            PromptBuilder.Prompt prompt = prompts.buildFromGitHubFeature(
+                    ctx, kind, req.tone(), length, req.language());
+
+            long start = System.currentTimeMillis();
+            AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
+                    prompt.system(), prompt.user(), req.model(), length.maxTokens(), 0.7));
+            int latency = (int) (System.currentTimeMillis() - start);
+
+            AiGeneration g = AiGeneration.success(
+                    workspaceId, userId, provider.kind(), completion.model(),
+                    kind, req.tone(), length,
                     req.language() == null ? "en" : req.language(),
                     prompt.user(), completion.text(),
                     completion.promptTokens(), completion.outputTokens(), cost, latency);

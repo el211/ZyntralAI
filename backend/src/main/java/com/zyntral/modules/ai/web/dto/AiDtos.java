@@ -34,5 +34,19 @@ public final class AiDtos {
             String model
     ) {}
 
+    public record GitHubFeatureRequest(
+            @NotBlank @Size(max = 500) String repoUrl,
+            @NotBlank @Size(max = 200) String featureName,
+            @NotBlank @Size(max = 2000) String featureDescription,
+            @Size(max = 2000) String filePaths,   // optional: comma-separated specific paths
+            String githubToken,                    // optional: PAT for private repos
+            AiContentKind contentKind,             // optional: defaults to LINKEDIN_POST
+            AiTone tone,
+            AiLength length,
+            String language,
+            AiProviderKind provider,
+            String model
+    ) {}
+
     public record CreditUsageResponse(int limit, int used, int remaining) {}
 }

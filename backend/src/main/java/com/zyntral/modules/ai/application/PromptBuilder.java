@@ -17,6 +17,40 @@ public class PromptBuilder {
 
     public record Prompt(String system, String user) {}
 
+    /** Build a post prompt from a GitHub feature — code files + description. */
+    public Prompt buildFromGitHubFeature(GitHubRepoService.FeatureCodeContext ctx,
+                                         AiContentKind kind, AiTone tone,
+                                         AiLength length, String language) {
+        String contentType = kind != null ? humanize(kind.name()) : "LinkedIn post";
+        String toneStr = tone != null ? tone.name().toLowerCase(Locale.ROOT) : "professional";
+
+        String system = """
+                You are Zyntral AI, an expert developer-relations and technical content writer.
+                Write an engaging %s about a software feature. Use a %s tone. Target length: %s.
+                Respond in %s. Output only the finished post — no preamble, no explanations,
+                no surrounding quotation marks.
+                Highlight what the feature does, why it matters, what problem it solves, and the
+                technical approach where interesting. Feel authentic and human. Add 3-5 relevant
+                hashtags at the end."""
+                .formatted(contentType, toneStr, lengthHint(length), languageName(language));
+
+        StringBuilder user = new StringBuilder();
+        user.append("Write a ").append(contentType).append(" about this feature I built:\n\n");
+        user.append("Project: ").append(ctx.repoOwner()).append("/").append(ctx.repoName()).append("\n");
+        user.append("Feature name: ").append(ctx.featureName()).append("\n");
+        user.append("Description: ").append(ctx.featureDescription()).append("\n");
+
+        if (!ctx.files().isEmpty()) {
+            user.append("\nRelevant code files:\n");
+            for (GitHubRepoService.SourceFile file : ctx.files()) {
+                user.append("\n--- ").append(file.path()).append(" ---\n");
+                user.append(file.content()).append("\n");
+            }
+        }
+
+        return new Prompt(system, user.toString());
+    }
+
     /** Build a LinkedIn post prompt from a GitHub commit summary. */
     public Prompt buildFromGitHubCommit(GitHubCommitService.CommitSummary commit,
                                         AiTone tone, AiLength length, String language) {

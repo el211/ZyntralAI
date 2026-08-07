@@ -19,13 +19,14 @@ import { SpeechGenerator } from "@/components/speech-generator";
 import { DubbingTab } from "./dubbing-tab";
 
 const TABS = [
-  { id: "TEXT",    label: "Text" },
-  { id: "GITHUB",  label: "GitHub → LinkedIn" },
-  { id: "LOGO",    label: "Logo" },
-  { id: "BANNER",  label: "Banner" },
-  { id: "VIDEO",   label: "Video" },
-  { id: "SPEECH",  label: "Speech" },
-  { id: "DUBBING", label: "Video dubbing" },
+  { id: "TEXT",           label: "Text" },
+  { id: "GITHUB",         label: "GitHub → Post" },
+  { id: "GITHUB_FEATURE", label: "GitHub Feature" },
+  { id: "LOGO",           label: "Logo" },
+  { id: "BANNER",         label: "Banner" },
+  { id: "VIDEO",          label: "Video" },
+  { id: "SPEECH",         label: "Speech" },
+  { id: "DUBBING",        label: "Video dubbing" },
 ] as const;
 type StudioTab = (typeof TABS)[number]["id"];
 
@@ -58,7 +59,7 @@ export default function AiStudioPage() {
     provider: "ANTHROPIC" as "ANTHROPIC" | "OPENAI" | "GEMINI",
   });
 
-  // ── GitHub form ───────────────────────────────────────────────────────────
+  // ── GitHub commit form ────────────────────────────────────────────────────
   const [ghForm, setGhForm] = useState({
     repoUrl: "",
     commitSha: "",
@@ -69,7 +70,22 @@ export default function AiStudioPage() {
     provider: "ANTHROPIC" as "ANTHROPIC" | "OPENAI" | "GEMINI",
   });
 
+  // ── GitHub Feature form ───────────────────────────────────────────────────
+  const [ghFeatureForm, setGhFeatureForm] = useState({
+    repoUrl: "",
+    featureName: "",
+    featureDescription: "",
+    filePaths: "",
+    githubToken: "",
+    contentKind: "LINKEDIN_POST" as AiContentKind,
+    tone: "PROFESSIONAL" as AiTone,
+    length: "MEDIUM" as AiLength,
+    language: "en",
+    provider: "ANTHROPIC" as "ANTHROPIC" | "OPENAI" | "GEMINI",
+  });
+
   const [result, setResult] = useState<GenerationResult | null>(null);
+  const [featureResult, setFeatureResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<StudioTab>("TEXT");
 
@@ -114,9 +130,33 @@ export default function AiStudioPage() {
     onError: (err) => setError(apiErrorMessage(err)),
   });
 
+  const generateGitHubFeature = useMutation({
+    mutationFn: async () =>
+      unwrap<GenerationResult>(
+        (await api.post(`/workspaces/${current!.id}/ai/generate/from-github-feature`, {
+          repoUrl: ghFeatureForm.repoUrl,
+          featureName: ghFeatureForm.featureName,
+          featureDescription: ghFeatureForm.featureDescription,
+          filePaths: ghFeatureForm.filePaths || null,
+          githubToken: ghFeatureForm.githubToken || null,
+          contentKind: ghFeatureForm.contentKind,
+          tone: ghFeatureForm.tone,
+          length: ghFeatureForm.length,
+          language: ghFeatureForm.language,
+          provider: ghFeatureForm.provider,
+        })).data,
+      ),
+    onSuccess: (data) => {
+      setFeatureResult(data);
+      setError(null);
+      qc.invalidateQueries({ queryKey: ["credits", current?.id] });
+    },
+    onError: (err) => setError(apiErrorMessage(err)),
+  });
+
   if (!current) return <p className="text-muted-foreground">Select a workspace first.</p>;
 
-  const isPending = generate.isPending || generateGitHub.isPending;
+  const isPending = generate.isPending || generateGitHub.isPending || generateGitHubFeature.isPending;
 
   return (
     <div className="space-y-6">
@@ -133,7 +173,7 @@ export default function AiStudioPage() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => { setTab(t.id); setResult(null); setError(null); }}
+            onClick={() => { setTab(t.id); setResult(null); setFeatureResult(null); setError(null); }}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === t.id
                 ? "bg-background text-foreground shadow-sm"
@@ -144,6 +184,131 @@ export default function AiStudioPage() {
           </button>
         ))}
       </div>
+
+      {/* ── GitHub Feature ──────────────────────────────────────────────── */}
+      {tab === "GITHUB_FEATURE" && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Github className="h-4 w-4" />
+                GitHub feature showcase
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Describe a feature you built — we analyse the relevant code and write a post about it.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Repository URL</Label>
+                <Input
+                  placeholder="https://github.com/owner/repo"
+                  value={ghFeatureForm.repoUrl}
+                  onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, repoUrl: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Feature name</Label>
+                <Input
+                  placeholder="e.g. AI-powered content scheduler"
+                  value={ghFeatureForm.featureName}
+                  onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, featureName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Describe the feature</Label>
+                <Textarea
+                  rows={4}
+                  placeholder="What does it do? What problem does it solve? What makes it interesting?"
+                  value={ghFeatureForm.featureDescription}
+                  onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, featureDescription: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  Specific file paths{" "}
+                  <span className="text-xs text-muted-foreground">(optional — comma-separated, e.g. src/scheduler.ts)</span>
+                </Label>
+                <Input
+                  placeholder="Leave blank to auto-discover relevant files"
+                  value={ghFeatureForm.filePaths}
+                  onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, filePaths: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  GitHub token{" "}
+                  <span className="text-xs text-muted-foreground">(optional — required for private repos)</span>
+                </Label>
+                <Input
+                  type="password"
+                  placeholder="ghp_…"
+                  value={ghFeatureForm.githubToken}
+                  onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, githubToken: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Post format</Label>
+                  <Select value={ghFeatureForm.contentKind}
+                    onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, contentKind: e.target.value as AiContentKind })}>
+                    {KINDS.map((k) => <option key={k} value={k}>{pretty(k)}</option>)}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tone</Label>
+                  <Select value={ghFeatureForm.tone}
+                    onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, tone: e.target.value as AiTone })}>
+                    {TONES.map((t) => <option key={t} value={t}>{pretty(t)}</option>)}
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Length</Label>
+                  <Select value={ghFeatureForm.length}
+                    onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, length: e.target.value as AiLength })}>
+                    {LENGTHS.map((l) => <option key={l} value={l}>{pretty(l)}</option>)}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>AI model</Label>
+                  <Select value={ghFeatureForm.provider}
+                    onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, provider: e.target.value as "ANTHROPIC" | "OPENAI" | "GEMINI" })}>
+                    <option value="ANTHROPIC">Claude (Anthropic)</option>
+                    <option value="OPENAI">ChatGPT (OpenAI)</option>
+                    <option value="GEMINI">Gemini (Google)</option>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Language</Label>
+                  <Select value={ghFeatureForm.language}
+                    onChange={(e) => setGhFeatureForm({ ...ghFeatureForm, language: e.target.value })}>
+                    <option value="en">English</option>
+                    <option value="fr">Français</option>
+                  </Select>
+                </div>
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button
+                className="w-full"
+                disabled={!ghFeatureForm.repoUrl.trim() || !ghFeatureForm.featureName.trim() || !ghFeatureForm.featureDescription.trim() || generateGitHubFeature.isPending}
+                onClick={() => generateGitHubFeature.mutate()}
+              >
+                <Sparkles className="h-4 w-4" />
+                {generateGitHubFeature.isPending ? "Analysing code & generating…" : "Generate post"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <ResultCard
+            result={featureResult}
+            isPending={generateGitHubFeature.isPending}
+            onCopy={() => navigator.clipboard.writeText(featureResult!.output)}
+            onSend={() => sendToPost(featureResult!)}
+          />
+        </div>
+      )}
 
       {(tab === "LOGO" || tab === "BANNER") && <ImageGenerator kind={tab} />}
       {tab === "VIDEO"   && <VideoGenerator />}
