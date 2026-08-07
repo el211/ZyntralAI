@@ -96,7 +96,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <p style={{ fontSize: "13px", fontWeight: 500, color: "#f0eeeb", margin: 0 }}>Your AI API Keys</p>
-              <p style={{ fontSize: "12px", color: "rgba(240,238,235,0.35)", margin: 0 }}>Use your own Anthropic / OpenAI / Gemini key — up to 50% fewer credits</p>
+              <p style={{ fontSize: "12px", color: "rgba(240,238,235,0.35)", margin: 0 }}>Use your own Anthropic / OpenAI / Gemini key — from 0.5 credits instead of 1</p>
             </div>
           </div>
           <ArrowUpRight size={15} style={{ color: "rgba(240,238,235,0.3)", flexShrink: 0 }} />

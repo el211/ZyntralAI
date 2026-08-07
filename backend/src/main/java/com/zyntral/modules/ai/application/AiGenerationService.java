@@ -53,7 +53,7 @@ public class AiGenerationService {
 
     public record GenerationResult(
             UUID id, String output, AiProviderKind provider, String model,
-            int promptTokens, int outputTokens, int creditsCost
+            int promptTokens, int outputTokens, double creditsCost
     ) {}
 
     public GenerationResult generate(GenerateCommand cmd) {
@@ -102,7 +102,7 @@ public class AiGenerationService {
                 completion.promptTokens(), completion.outputTokens(), cost, latency);
         generations.save(g);
         return new GenerationResult(g.getId(), completion.text(), providerKind, completion.model(),
-                completion.promptTokens(), completion.outputTokens(), cost);
+                completion.promptTokens(), completion.outputTokens(), toDisplay(cost));
     }
 
     /** Fetch a GitHub commit and generate a LinkedIn post from it. */
@@ -136,7 +136,7 @@ public class AiGenerationService {
                     completion.promptTokens(), completion.outputTokens(), cost, latency);
             generations.save(g);
             return new GenerationResult(g.getId(), completion.text(), provider.kind(), completion.model(),
-                    completion.promptTokens(), completion.outputTokens(), cost);
+                    completion.promptTokens(), completion.outputTokens(), toDisplay(cost));
         } catch (RuntimeException ex) {
             credits.refund(workspaceId, cost);
             throw ex;
@@ -176,7 +176,7 @@ public class AiGenerationService {
                     completion.promptTokens(), completion.outputTokens(), cost, latency);
             generations.save(g);
             return new GenerationResult(g.getId(), completion.text(), provider.kind(), completion.model(),
-                    completion.promptTokens(), completion.outputTokens(), cost);
+                    completion.promptTokens(), completion.outputTokens(), toDisplay(cost));
         } catch (RuntimeException ex) {
             credits.refund(workspaceId, cost);
             throw ex;
@@ -189,26 +189,37 @@ public class AiGenerationService {
         var result = generations
                 .findByWorkspaceIdOrderByCreatedAtDesc(workspaceId, PageRequest.of(page, size))
                 .map(g -> new GenerationResult(g.getId(), g.getOutput(), g.getProvider(),
-                        g.getModel(), g.getPromptTokens(), g.getOutputTokens(), g.getCreditsCost()));
+                        g.getModel(), g.getPromptTokens(), g.getOutputTokens(),
+                        toDisplay(g.getCreditsCost())));
         return PageResponse.from(result);
     }
 
-    /** Full platform credit cost (uses Zyntral's own API key). */
+    /**
+     * All costs are stored as half-credits (scale = 2) so that 0.5-credit increments
+     * can be represented without floating-point in the DB.
+     * Display value = raw / CREDIT_SCALE.
+     */
+    private static final int CREDIT_SCALE = 2;
+
+    /** Full platform credit cost in half-credits (1 credit = 2 units). */
     private int creditCost(AiLength length) {
         return switch (length) {
-            case SHORT -> 1;
-            case MEDIUM -> 2;
-            case LONG -> 3;
+            case SHORT  -> 2;  // 1 credit
+            case MEDIUM -> 4;  // 2 credits
+            case LONG   -> 6;  // 3 credits
         };
     }
 
-    /** Discounted cost when the workspace provides its own API key (BYOK).
-     *  The platform still charges 1 credit to cover infrastructure + processing. */
+    /** Discounted BYOK cost in half-credits. */
     private int byokCreditCost(AiLength length) {
         return switch (length) {
-            case SHORT -> 0;  // free with own key
-            case MEDIUM -> 1; // half of normal
-            case LONG -> 1;   // half of normal
+            case SHORT  -> 1;  // 0.5 credits
+            case MEDIUM -> 2;  // 1 credit
+            case LONG   -> 3;  // 1.5 credits
         };
+    }
+
+    private double toDisplay(int rawCost) {
+        return rawCost / (double) CREDIT_SCALE;
     }
 }

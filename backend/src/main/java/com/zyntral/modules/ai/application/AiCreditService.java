@@ -33,7 +33,10 @@ public class AiCreditService {
         this.plans = plans;
     }
 
-    public record Usage(int limit, int used, int remaining) {}
+    /** Half-credit scale: 1 credit = 2 internal units, matching AiGenerationService.CREDIT_SCALE. */
+    private static final int CREDIT_SCALE = 2;
+
+    public record Usage(double limit, double used, double remaining) {}
 
     /** Charges {@code cost} credits or throws {@link ErrorCode#AI_CREDITS_EXHAUSTED}. */
     @Transactional
@@ -62,18 +65,22 @@ public class AiCreditService {
     @Transactional
     public Usage usage(UUID workspaceId) {
         LocalDate month = currentMonth();
-        int limit = monthlyLimit(workspaceId);
-        ledger.ensureLedger(workspaceId, month, limit);
+        int rawLimit = monthlyLimit(workspaceId);
+        ledger.ensureLedger(workspaceId, month, rawLimit);
         return ledger.findByIdWorkspaceIdAndIdPeriodMonth(workspaceId, month)
-                .map(l -> new Usage(l.getCreditsLimit(), l.getCreditsUsed(), l.getRemaining()))
-                .orElse(new Usage(limit, 0, limit));
+                .map(l -> new Usage(
+                        l.getCreditsLimit() / (double) CREDIT_SCALE,
+                        l.getCreditsUsed()  / (double) CREDIT_SCALE,
+                        l.getRemaining()    / (double) CREDIT_SCALE))
+                .orElse(new Usage(rawLimit / (double) CREDIT_SCALE, 0, rawLimit / (double) CREDIT_SCALE));
     }
 
     private int monthlyLimit(UUID workspaceId) {
         Workspace ws = workspaces.findById(workspaceId)
                 .orElseThrow(() -> ApiException.notFound("workspace", workspaceId));
         Plan plan = plans.findById(ws.getPlan()).orElseThrow();
-        return plan.getAiCreditsMonthly();
+        // Stored in half-credit units (CREDIT_SCALE = 2) so 50 display credits = 100 units
+        return plan.getAiCreditsMonthly() * CREDIT_SCALE;
     }
 
     private LocalDate currentMonth() {

@@ -48,5 +48,5 @@ public final class AiDtos {
             String model
     ) {}
 
-    public record CreditUsageResponse(int limit, int used, int remaining) {}
+    public record CreditUsageResponse(double limit, double used, double remaining) {}
 }

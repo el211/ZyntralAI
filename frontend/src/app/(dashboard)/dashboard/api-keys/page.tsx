@@ -136,9 +136,9 @@ export default function ApiKeysPage() {
               Your own key
             </p>
             {[
-              { label: "Short content", value: "0 credits" },
+              { label: "Short content", value: "0.5 credits" },
               { label: "Medium content", value: "1 credit" },
-              { label: "Long content", value: "1 credit" },
+              { label: "Long content", value: "1.5 credits" },
             ].map(({ label, value }) => (
               <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: "12px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <span style={{ color: "rgba(240,238,235,0.4)" }}>{label}</span>
