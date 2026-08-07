@@ -15,7 +15,7 @@ public class TwitterOAuthProvider extends AbstractRestOAuthProvider {
     private static final String AUTH = "https://twitter.com/i/oauth2/authorize";
     private static final String TOKEN = "https://api.twitter.com/2/oauth2/token";
     private static final String ME = "https://api.twitter.com/2/users/me?user.fields=profile_image_url,username";
-    private static final String SCOPES = "tweet.read tweet.write users.read offline.access";
+    private static final String SCOPES = "tweet.read tweet.write users.read";
 
     private final SocialOAuthProperties.Provider cfg;
 
