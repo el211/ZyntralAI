@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/calendar":  "Calendar",
   "/dashboard/social":    "Social accounts",
   "/dashboard/billing":   "Billing",
+  "/dashboard/api-keys":  "API Keys",
   "/dashboard/settings":  "Settings",
   "/dashboard/admin":     "Admin",
 };

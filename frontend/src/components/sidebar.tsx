@@ -7,7 +7,7 @@ import { useWorkspace } from "@/lib/workspace";
 import {
   LayoutDashboard, Sparkles, FileText, CalendarDays, Share2,
   CreditCard, Settings, Shield, LogOut, Images, Zap, ChevronDown,
-  Search, SquarePen,
+  Search, SquarePen, Key,
 } from "lucide-react";
 
 const mainNav = [
@@ -21,6 +21,7 @@ const mainNav = [
 const accountNav = [
   { href: "/dashboard/social",   label: "Social",    icon: Share2 },
   { href: "/dashboard/billing",  label: "Billing",   icon: CreditCard },
+  { href: "/dashboard/api-keys", label: "API Keys",  icon: Key },
   { href: "/dashboard/settings", label: "Settings",  icon: Settings },
 ];
 
