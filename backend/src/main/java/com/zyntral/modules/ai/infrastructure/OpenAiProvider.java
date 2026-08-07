@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,17 +36,27 @@ public class OpenAiProvider implements AiProvider {
         return AiProviderKind.OPENAI;
     }
 
+    /** GPT-5.x models dropped max_tokens and only allow temperature=1 (the default).
+     *  We detect these by model name prefix and omit unsupported parameters. */
+    private static boolean isNewGenModel(String model) {
+        return model != null && (model.startsWith("gpt-5") || model.startsWith("o1") || model.startsWith("o3"));
+    }
+
     @Override
     public AiCompletion complete(AiRequest request) {
         String model = request.model() != null ? request.model() : config.model();
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "max_completion_tokens", request.maxTokens(),
-                "temperature", request.temperature(),
-                "messages", List.of(
-                        Map.of("role", "system", "content", request.systemPrompt() == null ? "" : request.systemPrompt()),
-                        Map.of("role", "user", "content", request.userPrompt()))
-        );
+        boolean newGen = isNewGenModel(model);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(
+                Map.of("role", "system", "content", request.systemPrompt() == null ? "" : request.systemPrompt()),
+                Map.of("role", "user", "content", request.userPrompt())));
+        body.put("max_completion_tokens", request.maxTokens());
+        // temperature is fixed at 1 for GPT-5.x models and cannot be changed
+        if (!newGen) {
+            body.put("temperature", request.temperature());
+        }
         try {
             JsonNode res = client.post()
                     .uri("/chat/completions")
