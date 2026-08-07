@@ -18,7 +18,8 @@ interface SocialAccount {
 // All platforms have a real OAuth flow wired on the backend (each activates once its
 // client credentials are configured in the environment).
 const PLATFORMS = ["LINKEDIN", "TWITTER", "FACEBOOK", "INSTAGRAM", "TIKTOK", "YOUTUBE", "PINTEREST"];
-const OAUTH_ENABLED = new Set(PLATFORMS);
+const OAUTH_ENABLED = new Set(["LINKEDIN", "TWITTER", "TIKTOK", "YOUTUBE", "PINTEREST"]);
+const COMING_SOON = new Set(["FACEBOOK", "INSTAGRAM"]);
 
 export default function SocialPage() {
   const { current } = useWorkspace();
@@ -111,13 +112,22 @@ export default function SocialPage() {
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {PLATFORMS.map((p) => {
             const enabled = OAUTH_ENABLED.has(p);
+            const soon = COMING_SOON.has(p);
             return (
               <Card key={p}><CardContent className="flex items-center justify-between p-4">
                 <span className="text-sm font-medium capitalize">{p.toLowerCase()}</span>
-                <Button size="sm" variant="outline" disabled={!enabled || connecting === p}
-                  onClick={() => connect(p)}>
-                  {!enabled ? "Soon" : connecting === p ? "Redirecting…" : "Connect"}
-                </Button>
+                {soon ? (
+                  <span style={{
+                    fontSize: "11px", fontWeight: 600, padding: "2px 8px",
+                    borderRadius: "4px", background: "rgba(255,255,255,0.06)",
+                    color: "rgba(240,238,235,0.4)", letterSpacing: "0.04em",
+                  }}>Soon</span>
+                ) : (
+                  <Button size="sm" variant="outline" disabled={!enabled || connecting === p}
+                    onClick={() => connect(p)}>
+                    {connecting === p ? "Redirecting…" : "Connect"}
+                  </Button>
+                )}
               </CardContent></Card>
             );
           })}
