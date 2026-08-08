@@ -467,7 +467,7 @@ export default function CrmPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "12px", color: "rgba(240,238,235,0.4)" }}>Results:</span>
-                {[5, 10, 20].map((n) => (
+                {[5, 10].map((n) => (
                   <button
                     key={n}
                     onClick={() => setDiscCount(n)}

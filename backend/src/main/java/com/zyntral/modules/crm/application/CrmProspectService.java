@@ -216,7 +216,8 @@ public class CrmProspectService {
                     "across many countries and industries. You always respond with valid JSON only — " +
                     "no markdown, no commentary, just the JSON array.";
 
-            String userPrompt = "Find " + Math.min(count, 20) + " real companies matching these criteria:\n" +
+            int safeCount = Math.min(count, 10); // cap at 10 to avoid token truncation
+            String userPrompt = "Find " + safeCount + " real companies matching these criteria:\n" +
                     "- Industry: " + industry + "\n" +
                     "- Country/Region: " + country + "\n" +
                     (keywords != null && !keywords.isBlank() ? "- Additional target: " + keywords + "\n" : "") +
@@ -238,8 +239,10 @@ public class CrmProspectService {
                     "- Prefer companies that likely need the services implied by the industry/keywords\n" +
                     "- Vary company sizes — include both well-known and smaller companies";
 
+            // Each company object needs ~300-400 tokens; give generous headroom
+            int maxTokens = Math.min(count, 10) * 500 + 500;
             AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
-                    system, userPrompt, null, 3000, 0.4, byokKey));
+                    system, userPrompt, null, maxTokens, 0.4, byokKey));
 
             return parseDiscoveredProspects(completion.text());
         } catch (RuntimeException ex) {
@@ -249,24 +252,54 @@ public class CrmProspectService {
     }
 
     private List<DiscoveredProspect> parseDiscoveredProspects(String raw) {
-        String text = raw.trim();
-        // Strip markdown code fences if present
-        if (text.startsWith("```")) {
-            text = text.replaceAll("```[a-z]*\\n?", "").replace("```", "").trim();
-        }
-        // Find the JSON array
+        String text = raw == null ? "" : raw.trim();
+
+        // Strip markdown code fences (```json ... ```)
+        text = text.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replace("```", "").trim();
+
+        // Find the outermost JSON array
         int start = text.indexOf('[');
-        int end = text.lastIndexOf(']');
-        if (start == -1 || end == -1 || end <= start) {
+        if (start == -1) {
             throw new ApiException(ErrorCode.BUSINESS_RULE,
-                    new Object[]{"AI returned an unexpected format — please try again"});
+                    new Object[]{"AI did not return a list of companies — please try again"});
         }
-        text = text.substring(start, end + 1);
+
+        // Walk from start to find the matching closing bracket, handling nesting
+        int depth = 0;
+        int end = -1;
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '[') depth++;
+            else if (c == ']') { depth--; if (depth == 0) { end = i; break; } }
+        }
+
+        if (end == -1) {
+            // JSON was truncated — try to close it gracefully
+            // Find last complete object (last "}")
+            int lastBrace = text.lastIndexOf('}');
+            if (lastBrace > start) {
+                text = text.substring(start, lastBrace + 1) + "]";
+            } else {
+                throw new ApiException(ErrorCode.BUSINESS_RULE,
+                        new Object[]{"AI response was incomplete — try a smaller count (5 or 10)"});
+            }
+        } else {
+            text = text.substring(start, end + 1);
+        }
+
         try {
-            return json.readValue(text, new TypeReference<List<DiscoveredProspect>>() {});
+            List<DiscoveredProspect> result = json.readValue(text,
+                    new TypeReference<List<DiscoveredProspect>>() {});
+            if (result == null || result.isEmpty()) {
+                throw new ApiException(ErrorCode.BUSINESS_RULE,
+                        new Object[]{"AI found no companies matching your criteria — try different keywords"});
+            }
+            return result;
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
             throw new ApiException(ErrorCode.BUSINESS_RULE,
-                    new Object[]{"Could not parse AI response: " + e.getMessage()});
+                    new Object[]{"Could not parse AI response — please try again"});
         }
     }
 
