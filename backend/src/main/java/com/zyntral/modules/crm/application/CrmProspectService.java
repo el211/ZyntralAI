@@ -1,5 +1,7 @@
 package com.zyntral.modules.crm.application;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zyntral.common.error.ApiException;
 import com.zyntral.common.error.ErrorCode;
 import com.zyntral.modules.ai.application.AiCreditService;
@@ -13,8 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * CRM prospect management and AI-powered outreach features.
@@ -30,20 +33,33 @@ public class CrmProspectService {
     private final AiProviderRegistry registry;
     private final AiCreditService credits;
     private final WorkspaceProviderKeyRepository providerKeys;
+    private final ObjectMapper json;
     private final RestClient http;
 
     public CrmProspectService(CrmProspectRepository prospects, WorkspaceAccess access,
                                AiProviderRegistry registry, AiCreditService credits,
-                               WorkspaceProviderKeyRepository providerKeys) {
+                               WorkspaceProviderKeyRepository providerKeys,
+                               ObjectMapper json) {
         this.prospects = prospects;
         this.access = access;
         this.registry = registry;
         this.credits = credits;
         this.providerKeys = providerKeys;
+        this.json = json;
         this.http = RestClient.builder()
                 .defaultHeader("User-Agent", "Mozilla/5.0 (compatible; ZyntralBot/1.0)")
                 .build();
     }
+
+    // ── Result records ────────────────────────────────────────────────────────
+
+    public record DiscoveredProspect(
+            String company, String website, String description,
+            String country, String industry, String estimatedSize,
+            String firstName, String lastName, String contactEmail
+    ) {}
+
+    public record EnrichmentResult(String email, String metaDescription) {}
 
     // ── Prospect CRUD ─────────────────────────────────────────────────────────
 
@@ -177,6 +193,147 @@ public class CrmProspectService {
         }
     }
 
+    // ── AI: Prospect Discovery ────────────────────────────────────────────────
+
+    /**
+     * Uses AI to generate a list of real companies matching the given criteria.
+     * Charges 1 credit (0.5 with BYOK). Results are based on AI training knowledge —
+     * not real-time search — so they should be verified before outreach.
+     */
+    public List<DiscoveredProspect> discoverProspects(UUID workspaceId, UUID userId,
+                                                       String industry, String country,
+                                                       String keywords, int count) {
+        access.requireCanEdit(workspaceId, userId);
+
+        AiProvider provider = registry.resolve(null);
+        String byokKey = providerKeys.find(workspaceId, provider.kind().name())
+                .map(k -> k.getApiKey()).orElse(null);
+        int cost = byokKey != null ? 1 : CREDIT_SCALE;
+        credits.charge(workspaceId, cost);
+
+        try {
+            String system = "You are a B2B sales intelligence assistant with broad knowledge of companies " +
+                    "across many countries and industries. You always respond with valid JSON only — " +
+                    "no markdown, no commentary, just the JSON array.";
+
+            String userPrompt = "Find " + Math.min(count, 20) + " real companies matching these criteria:\n" +
+                    "- Industry: " + industry + "\n" +
+                    "- Country/Region: " + country + "\n" +
+                    (keywords != null && !keywords.isBlank() ? "- Additional target: " + keywords + "\n" : "") +
+                    "\nReturn a JSON array with exactly this structure — no markdown, just raw JSON:\n" +
+                    "[{\n" +
+                    "  \"company\": \"Exact company name\",\n" +
+                    "  \"website\": \"https://their-domain.com\",\n" +
+                    "  \"description\": \"One sentence: what they do and who they serve\",\n" +
+                    "  \"country\": \"Country name\",\n" +
+                    "  \"industry\": \"Industry category\",\n" +
+                    "  \"estimatedSize\": \"small or medium or large\",\n" +
+                    "  \"firstName\": \"Founder or CEO first name if you know it, otherwise null\",\n" +
+                    "  \"lastName\": \"Founder or CEO last name if you know it, otherwise null\",\n" +
+                    "  \"contactEmail\": \"public contact email if you know it, otherwise null\"\n" +
+                    "}]\n\n" +
+                    "Rules:\n" +
+                    "- Only include companies you are confident are real and match the criteria\n" +
+                    "- Always include https:// in website URLs\n" +
+                    "- Prefer companies that likely need the services implied by the industry/keywords\n" +
+                    "- Vary company sizes — include both well-known and smaller companies";
+
+            AiProvider.AiCompletion completion = provider.complete(new AiProvider.AiRequest(
+                    system, userPrompt, null, 3000, 0.4, byokKey));
+
+            return parseDiscoveredProspects(completion.text());
+        } catch (RuntimeException ex) {
+            credits.refund(workspaceId, cost);
+            throw ex;
+        }
+    }
+
+    private List<DiscoveredProspect> parseDiscoveredProspects(String raw) {
+        String text = raw.trim();
+        // Strip markdown code fences if present
+        if (text.startsWith("```")) {
+            text = text.replaceAll("```[a-z]*\\n?", "").replace("```", "").trim();
+        }
+        // Find the JSON array
+        int start = text.indexOf('[');
+        int end = text.lastIndexOf(']');
+        if (start == -1 || end == -1 || end <= start) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE,
+                    new Object[]{"AI returned an unexpected format — please try again"});
+        }
+        text = text.substring(start, end + 1);
+        try {
+            return json.readValue(text, new TypeReference<List<DiscoveredProspect>>() {});
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE,
+                    new Object[]{"Could not parse AI response: " + e.getMessage()});
+        }
+    }
+
+    // ── Website Enrichment (no credit charge) ─────────────────────────────────
+
+    /**
+     * Fetches a website and extracts contact email + meta description.
+     * No credits charged — pure web scraping.
+     */
+    public EnrichmentResult enrichWebsite(UUID workspaceId, UUID userId, String websiteUrl) {
+        access.requireMember(workspaceId, userId);
+        try {
+            String html = fetchWebsiteQuiet(websiteUrl);
+            String email = extractBestEmail(html);
+
+            // Try /contact page if no email found on homepage
+            if (email == null) {
+                String base = websiteUrl.replaceAll("/$", "");
+                for (String path : List.of("/contact", "/contact-us", "/about", "/about-us")) {
+                    try {
+                        String contactHtml = fetchWebsiteQuiet(base + path);
+                        email = extractBestEmail(contactHtml);
+                        if (email != null) break;
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            String desc = extractMetaDescription(html);
+            return new EnrichmentResult(email, desc);
+        } catch (Exception e) {
+            return new EnrichmentResult(null, null);
+        }
+    }
+
+    private String extractBestEmail(String html) {
+        if (html == null) return null;
+        Set<String> found = new LinkedHashSet<>();
+
+        // mailto: links are most reliable
+        Matcher m = Pattern.compile("mailto:([^\"'>\\s?&#]+)", Pattern.CASE_INSENSITIVE).matcher(html);
+        while (m.find()) found.add(m.group(1).toLowerCase());
+
+        // Raw email patterns in text
+        m = Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,6}").matcher(html);
+        while (m.find()) found.add(m.group().toLowerCase());
+
+        return found.stream()
+                .filter(e -> !e.contains("noreply") && !e.contains("no-reply")
+                        && !e.contains("example.") && !e.contains("sentry.")
+                        && !e.contains("wix.") && !e.contains("schema.org"))
+                .findFirst()
+                .orElse(found.stream().findFirst().orElse(null));
+    }
+
+    private String extractMetaDescription(String html) {
+        if (html == null) return null;
+        // <meta name="description" content="...">
+        Matcher m = Pattern.compile(
+                "<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']{10,300})[\"']",
+                Pattern.CASE_INSENSITIVE).matcher(html);
+        if (m.find()) return m.group(1);
+        m = Pattern.compile(
+                "<meta[^>]+content=[\"']([^\"']{10,300})[\"'][^>]+name=[\"']description[\"']",
+                Pattern.CASE_INSENSITIVE).matcher(html);
+        return m.find() ? m.group(1) : null;
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String buildProspectContext(CrmProspect p) {
@@ -204,6 +361,14 @@ public class CrmProspectService {
         } catch (Exception e) {
             throw new ApiException(ErrorCode.BUSINESS_RULE,
                     new Object[]{"Could not fetch website: " + e.getMessage()});
+        }
+    }
+
+    private String fetchWebsiteQuiet(String url) {
+        try {
+            return http.get().uri(url).retrieve().body(String.class);
+        } catch (Exception e) {
+            return null;
         }
     }
 

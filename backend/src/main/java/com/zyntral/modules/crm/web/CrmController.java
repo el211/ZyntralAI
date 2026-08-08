@@ -88,6 +88,15 @@ public class CrmController {
 
     public record AiTextResponse(String text) {}
 
+    public record DiscoverRequest(
+            @NotBlank @Size(max = 100) String industry,
+            @NotBlank @Size(max = 100) String country,
+            @Size(max = 300) String keywords,
+            int count   // 5, 10, or 20
+    ) {}
+
+    public record EnrichRequest(@NotBlank @Size(max = 500) String website) {}
+
     // ── Endpoints ─────────────────────────────────────────────────────────────
 
     @Operation(summary = "Add a prospect")
@@ -132,6 +141,26 @@ public class CrmController {
             @PathVariable UUID workspaceId,
             @PathVariable UUID prospectId) {
         service.delete(workspaceId, SecurityUtils.currentUserId(), prospectId);
+    }
+
+    @Operation(summary = "AI: Discover prospects matching criteria (charges 1 credit)")
+    @PostMapping("/discover")
+    public ApiResponse<List<CrmProspectService.DiscoveredProspect>> discover(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody DiscoverRequest req) {
+        int count = req.count() > 0 ? Math.min(req.count(), 20) : 10;
+        return ApiResponse.ok(service.discoverProspects(
+                workspaceId, SecurityUtils.currentUserId(),
+                req.industry(), req.country(), req.keywords(), count));
+    }
+
+    @Operation(summary = "Enrich a prospect by fetching their website for email + description (free)")
+    @PostMapping("/enrich")
+    public ApiResponse<CrmProspectService.EnrichmentResult> enrich(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody EnrichRequest req) {
+        return ApiResponse.ok(service.enrichWebsite(
+                workspaceId, SecurityUtils.currentUserId(), req.website()));
     }
 
     @Operation(summary = "AI: Analyze a website for outreach insights (charges 1 credit)")
