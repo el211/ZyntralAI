@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/library":   "Library",
   "/dashboard/posts":     "Posts",
   "/dashboard/calendar":  "Calendar",
+  "/dashboard/crm":       "Zyntral CRM",
   "/dashboard/social":    "Social accounts",
   "/dashboard/billing":   "Billing",
   "/dashboard/api-keys":  "API Keys",

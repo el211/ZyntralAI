@@ -7,7 +7,7 @@ import { useWorkspace } from "@/lib/workspace";
 import {
   LayoutDashboard, Sparkles, FileText, CalendarDays, Share2,
   CreditCard, Settings, Shield, LogOut, Images, Zap, ChevronDown,
-  Search, SquarePen, Key,
+  Search, SquarePen, Key, Users,
 } from "lucide-react";
 
 const mainNav = [
@@ -16,6 +16,7 @@ const mainNav = [
   { href: "/dashboard/library",  label: "Library",     icon: Images },
   { href: "/dashboard/posts",    label: "Posts",       icon: FileText },
   { href: "/dashboard/calendar", label: "Calendar",    icon: CalendarDays },
+  { href: "/dashboard/crm",      label: "CRM",         icon: Users },
 ];
 
 const accountNav = [
