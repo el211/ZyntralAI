@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap, apiErrorMessage } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
@@ -208,6 +208,16 @@ export default function CrmPage() {
   const [msgResult, setMsgResult] = useState("");
   const [msgErr, setMsgErr] = useState("");
   const [drafting, setDrafting] = useState(false);
+  const analyzeResultRef = useRef<HTMLDivElement>(null);
+  const msgResultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (analyzeResult) analyzeResultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [analyzeResult]);
+
+  useEffect(() => {
+    if (msgResult) msgResultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [msgResult]);
 
   // ── Discover state ──
   const [discIndustry, setDiscIndustry] = useState("");
@@ -894,8 +904,14 @@ export default function CrmPage() {
                           </button>
                         </div>
                         {analyzeErr && <p style={{ fontSize: "12px", color: "#f87171" }}>{analyzeErr}</p>}
+                        {analyzing && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", borderRadius: "8px", border: "1px solid rgba(129,140,248,0.12)", background: "rgba(129,140,248,0.04)" }}>
+                            <Loader2 size={14} style={{ color: "#818cf8", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+                            <span style={{ fontSize: "13px", color: "rgba(240,238,235,0.5)" }}>Fetching website and analyzing with AI…</span>
+                          </div>
+                        )}
                         {analyzeResult && (
-                          <div style={{ borderRadius: "8px", border: "1px solid rgba(129,140,248,0.15)", background: "rgba(129,140,248,0.04)", padding: "16px" }}>
+                          <div ref={analyzeResultRef} style={{ borderRadius: "8px", border: "1px solid rgba(129,140,248,0.15)", background: "rgba(129,140,248,0.04)", padding: "16px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                               <span style={{ fontSize: "12px", fontWeight: 600, color: "#818cf8" }}>Website Analysis</span>
                               <CopyButton text={analyzeResult} />
@@ -935,8 +951,14 @@ export default function CrmPage() {
                           {drafting ? "Drafting…" : `Draft ${msgChannel === "EMAIL" ? "Email" : msgChannel === "LINKEDIN" ? "LinkedIn Message" : "SMS"} (1 credit)`}
                         </button>
                         {msgErr && <p style={{ fontSize: "12px", color: "#f87171", margin: 0 }}>{msgErr}</p>}
+                        {drafting && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", borderRadius: "8px", border: "1px solid rgba(52,211,153,0.12)", background: "rgba(52,211,153,0.04)" }}>
+                            <Loader2 size={14} style={{ color: "#34d399", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+                            <span style={{ fontSize: "13px", color: "rgba(240,238,235,0.5)" }}>Writing personalized message…</span>
+                          </div>
+                        )}
                         {msgResult && (
-                          <div style={{ borderRadius: "8px", border: "1px solid rgba(52,211,153,0.15)", background: "rgba(52,211,153,0.04)", padding: "16px" }}>
+                          <div ref={msgResultRef} style={{ borderRadius: "8px", border: "1px solid rgba(52,211,153,0.15)", background: "rgba(52,211,153,0.04)", padding: "16px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                               <span style={{ fontSize: "12px", fontWeight: 600, color: "#34d399" }}>{msgChannel === "EMAIL" ? "Email Draft" : msgChannel === "LINKEDIN" ? "LinkedIn Message" : "SMS Draft"}</span>
                               <CopyButton text={msgResult} />
